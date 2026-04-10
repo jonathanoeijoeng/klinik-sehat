@@ -35,11 +35,11 @@
                     <div x-show="open" x-collapse class="pl-10 mt-1 space-y-1">
                         <flux:sidebar.item :href="route('patients.register')"
                             :current="request()->routeIs('patients.register')" wire:navigate size="sm">
-                            {{ __('Pendaftaran Pasien Baru') }}
+                            {{ __('Register') }}
                         </flux:sidebar.item>
-                        <flux:sidebar.item :href="route('dashboard')" :current="request()->routeIs('dashboard')"
-                            wire:navigate size="sm">
-                            {{ __('Kunjungan Pasien') }}
+                        <flux:sidebar.item :href="route('patients.visit')"
+                            :current="request()->routeIs('patients.visit')" wire:navigate size="sm">
+                            {{ __('Kunjungan') }}
                         </flux:sidebar.item>
                     </div>
                 </div>
@@ -49,11 +49,6 @@
         <flux:spacer />
 
         <flux:sidebar.nav>
-            <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit"
-                target="_blank">
-                {{ __('Repository') }}
-            </flux:sidebar.item>
-
             <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire"
                 target="_blank">
                 {{ __('Documentation') }}
