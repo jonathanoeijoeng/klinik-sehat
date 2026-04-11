@@ -5,13 +5,13 @@
     {{ filled($title ?? null) ? $title . ' - ' . config('app.name', 'Laravel') : config('app.name', 'Laravel') }}
 </title>
 
-<link rel="icon" href="/logo/favicon.svg" sizes="any">
+<link rel="icon" href="/logo/favicon.png" sizes="any">
 {{-- <link rel="icon" href="/favicon.svg" type="image/svg+xml"> --}}
 <link rel="apple-touch-icon" href="{{ asset('logo/apple-touch-icon.png') }}">
 
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
-<script src="https://cdn.lordicon.com/lordicon.js"></script>
+{{-- <script src="https://cdn.lordicon.com/lordicon.js"></script> --}}
 
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 @fluxAppearance

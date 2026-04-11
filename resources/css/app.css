@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import '../../vendor/livewire/flux/dist/flux.css';
+@import "tailwindcss";
+@import "../../vendor/livewire/flux/dist/flux.css";
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -9,21 +9,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans:
+        "Instrument Sans", ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
 
-    --color-brand: oklch(43.561% 0.09492 162.17);
-    --color-brand-50: oklch(87.578% 0.19348 161.17);
-    --color-brand-100: oklch(86.428% 0.19421 160.33);
-    --color-brand-200: oklch(79.79% 0.17828 160.7);
-    --color-brand-300: oklch(72.992% 0.16277 160.8);
-    --color-brand-400: oklch(66.032% 0.14689 160.92);
-    --color-brand-500: oklch(58.61% 0.12927 161.41);
-    --color-brand-600: oklch(51.22% 0.1125 161.74);
-    --color-brand-700: oklch(43.561% 0.09492 162.17);
-    --color-brand-800: oklch(35.55% 0.07645 162.85);
-    --color-brand-900: oklch(27.027% 0.05729 164.39);
-    --color-brand-950: oklch(22.366% 0.04563 167.37);
-    
+    --color-brand: oklch(59.35% 0.1583 140.48);
+    --color-brand-50: oklch(77.464% 0.15929 140.32);
+    --color-brand-100: oklch(76.16% 0.169 140.38);
+    --color-brand-200: oklch(73.69% 0.18541 140.49);
+    --color-brand-300: oklch(70.425% 0.19105 140.45);
+    --color-brand-400: oklch(64.795% 0.17447 140.52);
+    --color-brand-500: oklch(59.35% 0.1583 140.48);
+    --color-brand-600: oklch(53.779% 0.14167 140.41);
+    --color-brand-700: oklch(47.734% 0.12361 140.54);
+    --color-brand-800: oklch(41.819% 0.10661 140.22);
+    --color-brand-900: oklch(35.655% 0.08849 140.45);
+    --color-brand-950: oklch(32.345% 0.07794 140.34);
+
     --color-zinc-50: #fafafa;
     --color-zinc-100: #f5f5f5;
     --color-zinc-200: #e5e5e5;
@@ -50,7 +53,6 @@
 }
 
 @layer base {
-
     *,
     ::after,
     ::before,
@@ -65,7 +67,7 @@
 }
 
 [data-flux-label] {
-    @apply  !mb-0 !leading-tight;
+    @apply !mb-0 !leading-tight;
 }
 
 input:focus[data-flux-control],

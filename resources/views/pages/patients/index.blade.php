@@ -18,11 +18,11 @@ new class extends Component {
     <x-header header="Daftar Pasien" description="List pasien yang sudah terdaftar di sistem" />
     <div class="border rounded-2xl overflow-x-auto shadow-sm -mx-4 px-4 md:mx-0 md:px-0">
         <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-green-100">
+            <thead class="bg-brand-500">
                 <tr>
-                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-800 uppercase">Nama / NIK</th>
-                    <th class="px-6 py-4 text-left text-sm font-bold text-gray-800 uppercase">Status SATUSEHAT</th>
-                    <th class="px-6 py-4 text-right text-sm font-bold text-gray-800 uppercase">Aksi</th>
+                    <th class="px-6 py-4 text-left text-sm font-bold text-white uppercase">Nama / NIK</th>
+                    <th class="px-6 py-4 text-left text-sm font-bold text-white uppercase">Status SATUSEHAT</th>
+                    <th class="px-6 py-4 text-right text-sm font-bold text-white uppercase">Aksi</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
