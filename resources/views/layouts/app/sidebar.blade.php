@@ -16,11 +16,16 @@
         {{-- Pasien --}}
         <flux:sidebar.nav>
             <flux:sidebar.group :heading="__('Platform')" class="grid">
-                <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')"
-                    wire:navigate>
-                    {{ __('Dashboard') }}
-                </flux:sidebar.item>
 
+                <flux:sidebar.item :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                    <x-slot name="icon" class="w-6 h-6">
+                        <lord-icon src="https://cdn.lordicon.com/pgirtdfe.json" trigger="hover"
+                            style="width:32px;height:32px">
+                        </lord-icon>
+                    </x-slot>
+                    {{ __('Pasien') }}
+
+                </flux:sidebar.item>
 
                 <flux:sidebar.item :href="route('patients.index')" :current="request()->routeIs('patients.index')"
                     wire:navigate>
