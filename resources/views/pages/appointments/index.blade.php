@@ -2,12 +2,13 @@
 
 use Livewire\Component;
 
-new class extends Component
-{
+new class extends Component {
     //
 };
 ?>
 
 <div>
-    {{-- Be present above all else. - Naval Ravikant --}}
+    <x-header header="Pendaftaran Rawat Jalan" description="" />
+
+    Appointments
 </div>

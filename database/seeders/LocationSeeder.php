@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Location;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -12,6 +13,11 @@ class LocationSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        Location::create([
+            'organization_id' => 1,
+            'name' => 'Ruang 1A IRJT',
+            'satusehat_id' => '1e3f7c41-0812-44e5-b746-bbf3fea3c13a',
+            'organization_id' => '404cf448-a710-4bc2-8631-656f727fe4ff',
+        ]);
     }
 }
