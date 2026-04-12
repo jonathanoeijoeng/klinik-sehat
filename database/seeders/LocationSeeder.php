@@ -17,7 +17,6 @@ class LocationSeeder extends Seeder
             'organization_id' => 1,
             'name' => 'Ruang 1A IRJT',
             'satusehat_id' => '1e3f7c41-0812-44e5-b746-bbf3fea3c13a',
-            'organization_id' => '404cf448-a710-4bc2-8631-656f727fe4ff',
         ]);
     }
 }

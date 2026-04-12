@@ -11,7 +11,7 @@
 
 <div>
     @if ($label)
-        <label class="block text-sm font-medium mb-1">
+        <label class="block text-sm font-medium mb-1 text-zinc-400 dark:text-gray-200">
             {{ $label }}
         </label>
     @endif
@@ -22,7 +22,7 @@
             <select wire:model.live="{{ $currencyModel }}"
                 class="inline-flex items-center px-3 border border-r-0 rounded-l-lg 
                        bg-gray-100 text-gray-900
-                       dark:bg-zinc-800 dark:border-[#3E3E3A] dark:text-gray-100
+                       dark:bg-zinc-800 dark:border-brand-600 dark:text-gray-100
                        focus:ring-0 focus:outline-none cursor-pointer">
                 <option value="IDR">IDR</option>
                 <option value="USD">USD</option>
@@ -34,7 +34,7 @@
             <span
                 class="inline-flex items-center px-4 border border-r-0 rounded-l-lg 
                              bg-gray-100 text-gray-600 text-sm
-                             dark:bg-zinc-700 dark:border-[#3E3E3A] dark:text-gray-300">
+                             dark:bg-zinc-700 dark:border-brand-600 dark:text-gray-300">
                 {{ $addonLeft }}
             </span>
         @endif
@@ -84,17 +84,17 @@
                     $wire.set('{{ $attributes->wire('model')->value() }}', this.raw)
                 }
             }" x-model="display"
-                class="w-full border shadow shadow-zinc-200 dark:shadow-zinc-900 px-3 py-2 focus:outline-none
-        focus:ring
-        focus:border-green-400 bg-white dark:bg-zinc-700 dark:border-[#3E3E3A] dark:text-white rounded-r-lg" />
+                class="w-full border px-3 py-2 focus:outline-none
+                    focus:ring
+                    focus:border-green-400 bg-white dark:bg-zinc-700 dark:border-brand-600 dark:text-white rounded-r-lg" />
         @else
             {{-- Normal Mode --}}
             <input type="{{ $type }}"
                 {{ $attributes->merge([
                     'class' =>
-                        'border shadow shadow-zinc-200 dark:shadow-zinc-900 px-3 py-2
-                                                        focus:outline-none focus:ring focus:border-green-400
-                                                        bg-white dark:bg-zinc-700 dark:border-[#3E3E3A] dark:text-white ' .
+                        'w-full border px-3 py-2
+                                        focus:outline-none focus:ring focus:border-brand-400
+                                        bg-white dark:bg-zinc-700 dark:border-brand-600 dark:text-white ' .
                         ($addonLeft && $addonRight
                             ? 'rounded-none'
                             : ($addonLeft
@@ -110,7 +110,7 @@
             <span
                 class="inline-flex items-center px-4 border border-l-0 rounded-r-lg 
                              bg-gray-100 text-gray-600 text-sm
-                             dark:bg-zinc-700 dark:border-[#3E3E3A] dark:text-gray-300">
+                             dark:bg-zinc-700 dark:border-brand-600 dark:text-gray-300">
                 {{ $addonRight }}
             </span>
         @endif
