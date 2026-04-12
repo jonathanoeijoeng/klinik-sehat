@@ -44,8 +44,8 @@
                     {{ __('Pasien') }}
                 </flux:sidebar.item>
 
-                <flux:sidebar.item :href="route('in-patient.index')" :current="request()->routeIs('in-patient.index')"
-                    wire:navigate>
+                <flux:sidebar.item :href="route('out-patients.index')"
+                    :current="request()->routeIs('out-patients.index')" wire:navigate>
                     <x-slot name="icon">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"
                             fill="currentColor">
@@ -124,7 +124,7 @@
             <flux:toast />
         </flux:toast.group>
     @endpersist
-
+    <x-toaster />
     @fluxScripts
 </body>
 

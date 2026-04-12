@@ -11,7 +11,7 @@
 
 <div>
     @if ($label)
-        <label class="block text-sm font-medium mb-1 text-zinc-400 dark:text-gray-200">
+        <label class="block text-sm font-medium mb-1 text-zinc-600 dark:text-gray-200">
             {{ $label }}
         </label>
     @endif
@@ -93,8 +93,8 @@
                 {{ $attributes->merge([
                     'class' =>
                         'w-full border px-3 py-2
-                                        focus:outline-none focus:ring focus:border-brand-400
-                                        bg-white dark:bg-zinc-700 dark:border-brand-600 dark:text-white ' .
+                                                        focus:outline-none focus:ring focus:border-brand-400
+                                                        bg-white dark:bg-zinc-700 dark:border-brand-600 dark:text-white ' .
                         ($addonLeft && $addonRight
                             ? 'rounded-none'
                             : ($addonLeft

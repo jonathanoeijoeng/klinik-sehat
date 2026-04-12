@@ -6,10 +6,22 @@ use App\Models\Invoice;
 use App\Models\Patient;
 use App\Models\Location;
 use App\Models\Practitioner;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Transaction;
+use Illuminate\Support\Facades\Log;
+use App\Jobs\SyncEncounterToSatuSehat;
 
 new class extends Component {
-    public $patient_id, $practitioner_id, $location_id;
-    public $registration_fee = 0;
+    public $patient_id = 1;
+    public $practitioner_id = 1;
+    public $location_id = 1;
+    public $complaint = 'Batuk';
+    public $systole = 120;
+    public $diastole = 80;
+    public $weight = 60;
+    public $height = 170;
+    public $temperature = 36.5;
+    public $registration_fee = 50000;
 
     public $showModal = false;
 
@@ -26,10 +38,15 @@ new class extends Component {
 
     public function save()
     {
-        $this->validate([
+        $validated = $this->validate([
             'patient_id' => 'required',
             'practitioner_id' => 'required',
             'location_id' => 'required',
+            'registration_fee' => 'required|numeric',
+            'complaint' => 'required|string',
+            'systole' => 'required|numeric|max:300',
+            'diastole' => 'required|numeric|max:200',
+            'weight' => 'required|numeric|max:500',
         ]);
         // 1. Logic Generate Visit Number (KS-yymmdd-5char)
         $prefix = 'KS-' . now()->format('ymd') . '-';
@@ -41,22 +58,52 @@ new class extends Component {
         } while (OutpatientVisit::where('visit_number', $visitNumber)->exists());
 
         // 2. Simpan Kunjungan (Mulai TAT: arrived_at)
-        $visit = OutpatientVisit::create([
-            'visit_number' => $visitNumber,
-            'patient_id' => $this->patient_id,
-            'practitioner_id' => $this->practitioner_id,
-            'location_id' => $this->location_id,
-            'status' => 'waiting',
-            'arrived_at' => now(),
-        ]);
+        try {
+            // 2. Mulai Transaksi
+            $visit = DB::transaction(function () use ($validated, $visitNumber) {
+                // Simpan Data Kunjungan
+                $visit = OutpatientVisit::create([
+                    'visit_number' => $visitNumber,
+                    'patient_id' => $this->patient_id,
+                    'practitioner_id' => $this->practitioner_id,
+                    'location_id' => $this->location_id,
+                    'status' => 'waiting',
+                    'arrived_at' => now(),
+                ]);
 
-        // 3. Buat Invoice Awal (Gunakan Visit Number sebagai referensi)
-        $visit->invoice()->create([
-            'invoice_number' => 'INV-' . $visitNumber,
-            'registration_fee' => $this->registration_fee,
-            'grand_total' => $this->registration_fee,
-            'payment_status' => 'unpaid',
-        ]);
+                // Simpan Data Pemeriksaan Awal (Tanda Vital)
+                $visit->vitalSign()->create([
+                    'complaint' => $this->complaint,
+                    'systole' => $this->systole,
+                    'diastole' => $this->diastole,
+                    'weight' => $this->weight,
+                    'height' => $this->height,
+                    'temperature' => $this->temperature,
+                ]);
+
+                // Simpan Invoice
+                $visit->invoice()->create([
+                    'invoice_number' => 'INV-' . $visitNumber,
+                    'registration_fee' => (float) str_replace(',', '', $this->registration_fee),
+                    'grand_total' => (float) str_replace(',', '', $this->registration_fee),
+                    'payment_status' => 'unpaid',
+                ]);
+
+                return $visit; // Kembalikan objek visit agar bisa dipakai di luar closure
+            });
+
+            if ($visit) {
+                SyncEncounterToSatuSehat::dispatch($visit);
+            }
+
+            $this->dispatch('toast', type: 'success', text: 'Order sudah dibayar');
+            $this->closeModal();
+        } catch (\Exception $e) {
+            // Jika ada yang error, transaksi batal otomatis
+            Log::error('Gagal Registrasi: ' . $e->getMessage());
+            $this->addError('save_error', 'Terjadi kesalahan sistem, silakan coba lagi.');
+            $this->dispatch('toast', type: 'error', text: 'Order sudah dibayar');
+        }
 
         // 4. Feedback & Reset
         $this->closeModal();
@@ -83,7 +130,7 @@ new class extends Component {
 <div>
     <x-header header="Rawat Jalan" description="" />
 
-    <x-button wire:click="openModal" class="mb-4" color="brand">Registrasi</x-button>
+    <x-button wire:click="openModal" class="mb-4" color="brand">Registrasi Baru</x-button>
 
     <div x-data="{ open: @entangle('showModal') }" x-show="open" class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto"
         x-cloak>
@@ -120,9 +167,23 @@ new class extends Component {
                     </x-select>
                 </div>
 
-                <div>
-                    <x-input wire:model="registration_fee" name="registration_fee" placeholder="Biaya Pendaftaran..."
-                        label="Biaya Pendaftaran" />
+                <x-input wire:model="registration_fee" name="registration_fee" label="Biaya Pendaftaran"
+                    class="mb-4" />
+
+                <flux:separator />
+
+                <div class="grid grid-cols-1 gap-4 pt-4 mt-4">
+                    <h4 class="font-semibold text-gray-700">Pemeriksaan Awal (Tanda Vital)</h4>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <x-input wire:model="systole" name="systole" label="Systole (mmHg)" />
+                        <x-input wire:model="diastole" name="diastole" label="Diastole (mmHg)" />
+                        <x-input wire:model="weight" name="weight" label="Weight (Kg)" />
+                        <x-input wire:model="height" name="height" label="Height (cm)" />
+                        <x-input wire:model="temperature" name="temperature" label="Temp (°C)" />
+                    </div>
+                    <x-textarea wire:model="complaint" label="Keluhan" name="complaint" rows="3"
+                        placeholder="Contoh: Pusing sejak 2 hari lalu..." />
                 </div>
             </div>
 
