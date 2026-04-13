@@ -1,13 +1,564 @@
 <?php
 
-use Livewire\Component;
+namespace App\Livewire\Pages\Diagnosis;
 
-new class extends Component
-{
-    //
+use Livewire\Component;
+use App\Models\OutpatientVisit;
+use App\Models\Icd10;
+use App\Models\OutPatientDiagnosis;
+use App\Models\Medicine;
+use App\Services\SatuSehatService;
+use App\Models\Prescription;
+
+new class extends Component {
+    public OutpatientVisit $visit;
+    public $search = '';
+    public $medicineSearch = '';
+    public $selectedMedicineId;
+    public $qty = 1;
+    public $instruction = '';
+    public $isPrimary = false;
+    public $selectedIcd10 = null;
+    public $kfaResults = [];
+    public $confirmDeletePrescription = false;
+    public $confirmDeleteDiagnosa = false;
+    public $diagnosaId;
+    public $prescriptionId;
+
+    public function mount(OutpatientVisit $visit)
+    {
+        // Load relasi agar tidak N+1
+        $this->visit = $visit->load([
+            'patient',
+            'vitalSign',
+            'diagnoses' => function ($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('created_at', 'asc');
+            },
+            'prescriptions',
+        ]);
+    }
+
+    public function updatedSearch()
+    {
+        // Jika user mengetik sesuatu, kita reset pilihan ICD agar dropdown muncul lagi
+        $this->selectedIcd10 = null;
+    }
+
+    public function selectIcd10($id)
+    {
+        $this->selectedIcd10 = Icd10::find($id);
+        $this->search = '[' . $this->selectedIcd10->code . '] ' . $this->selectedIcd10->name_en;
+    }
+
+    // app/Livewire/Pages/Diagnosis/Index.php
+
+    public function addDiagnosis()
+    {
+        $this->validate([
+            'selectedIcd10' => 'required',
+        ]);
+
+        // JIKA inputan baru ini ditandai sebagai Primary
+        if ($this->isPrimary) {
+            // Reset semua diagnosa lain di kunjungan ini agar tidak ada yang Primary
+            OutpatientDiagnosis::where('outpatient_visit_id', $this->visit->id)->update(['is_primary' => false]);
+        }
+
+        // Baru kemudian insert data yang baru
+        OutpatientDiagnosis::create([
+            'outpatient_visit_id' => $this->visit->id,
+            'icd10_code' => $this->selectedIcd10->code,
+            'icd10_display' => $this->selectedIcd10->name_en,
+            'is_primary' => $this->isPrimary, // Akan jadi true dan satu-satunya
+        ]);
+
+        $this->reset(['search', 'selectedIcd10', 'isPrimary']);
+        $this->visit->load('diagnoses');
+    }
+
+    public function confirmingDeleteDiagnosis($id)
+    {
+        $this->confirmDeleteDiagnosa = true;
+        $this->diagnosaId = $id;
+    }
+
+    public function deleteDiagnosis()
+    {
+        $diag = OutpatientDiagnosis::find($this->diagnosaId);
+
+        // Jangan izinkan hapus jika sudah sinkron ke SatuSehat
+        if ($diag->ss_condition_id) {
+            $this->dispatch('notify', type: 'error', message: 'Data yang sudah sinkron tidak bisa dihapus!');
+            return;
+        }
+
+        $diag->delete();
+        $this->confirmDeleteDiagnosa = false;
+        $this->visit->load('diagnoses'); // Refresh list
+    }
+
+    public function setAsPrimary($id)
+    {
+        // 1. Set semua diagnosa di kunjungan ini menjadi non-primary dulu
+        OutpatientDiagnosis::where('outpatient_visit_id', $this->visit->id)->update(['is_primary' => false]);
+
+        // 2. Set diagnosa yang dipilih menjadi primary
+        $diag = OutpatientDiagnosis::find($id);
+        $diag->update(['is_primary' => true]);
+
+        $this->visit->load([
+            'diagnoses' => function ($query) {
+                $query->orderBy('is_primary', 'desc')->orderBy('created_at', 'asc');
+            },
+        ]);
+    }
+
+    public function selectMedicineFromKfa($kfaData)
+    {
+        // Tetap simpan/pastikan obat ada di Master Data (Medicine)
+        $medicine = Medicine::firstOrCreate(
+            ['kfa_code' => $kfaData['kfa_code']],
+            [
+                'name' => $kfaData['name'],
+                'display_name' => $kfaData['display'] ?? $kfaData['name'],
+                'form_type' => $kfaData['form'] ?? 'Obat',
+            ],
+        );
+
+        // Isi state untuk form input
+        $this->selectedMedicineId = $medicine->id;
+        $this->medicineSearch = $medicine->display_name; // Nama obat muncul di search field
+
+        // Tutup dropdown hasil KFA
+        $this->kfaResults = [];
+    }
+
+    public function searchKfaAction()
+    {
+        $results = app(SatuSehatService::class)->searchKfa($this->medicineSearch);
+
+        $this->kfaResults = collect($results)
+            ->map(function ($item) {
+                $name = $item['name'] ?? '';
+                $search = strtolower($this->medicineSearch);
+
+                // Hitung posisi kata kunci dalam nama obat
+                // Jika ada di depan, skor tinggi. Jika tidak ada, skor rendah.
+                $pos = strpos(strtolower($name), $search);
+                $score = $pos === false ? 1000 : $pos;
+
+                return [
+                    'score' => $score,
+                    'kfa_code' => $item['kfa_code'],
+                    'name' => $name,
+                    'display' => $item['nama_dagang'] ?? $name,
+                    'form' => $item['dosage_form']['name'] ?? 'Obat',
+                ];
+            })
+            ->sortBy('score') // Semakin kecil posisi (0 = di depan), semakin atas
+            ->take(10)
+            ->toArray();
+    }
+
+    public function updatedMedicineSearch()
+    {
+        if (strlen($this->medicineSearch) < 3) {
+            $this->kfaResults = [];
+            return;
+        }
+
+        $this->searchKfaAction();
+    }
+
+    public function addPrescription()
+    {
+        $this->validate([
+            'selectedMedicineId' => 'required',
+            'qty' => 'required|numeric|min:1',
+            'instruction' => 'required|string',
+        ]);
+
+        $medicine = Medicine::find($this->selectedMedicineId);
+
+        $this->visit->prescriptions()->create([
+            'medicine_id' => $medicine->id,
+            'medicine_name' => $medicine->display_name,
+            'quantity' => $this->qty,
+            'instruction' => $this->instruction,
+            'status' => 'pending',
+        ]);
+
+        // Reset form untuk input obat berikutnya
+        $this->reset(['selectedMedicineId', 'medicineSearch', 'qty', 'instruction']);
+        $this->qty = 1;
+
+        $this->visit->load('prescriptions'); // Refresh list resep di bawah
+    }
+
+    public function confirmingDeletePrescription($id)
+    {
+        $this->confirmDeletePrescription = true;
+        $this->prescriptionId = $id;
+    }
+
+    public function deletePrescription()
+    {
+        Prescription::find($this->prescriptionId)->delete();
+        $this->confirmDeletePrescription = false;
+        $this->visit->load('prescriptions'); // Refresh list resep di bawah
+    }
+
+    public function syncAllToSatuSehat()
+    {
+        if (!$this->visit->patient) {
+            $this->dispatch('notify', message: 'Error: Data pasien tidak ditemukan di memori.', type: 'error');
+            return;
+        }
+        $service = app(SatuSehatService::class);
+        $allConditionsSynced = true;
+
+        // 1. Kirim Diagnosa sebagai 'Condition' satu per satu
+        foreach ($this->visit->diagnoses as $diag) {
+            if (!$diag->satusehat_condition_id) {
+                $res = $service->sendCondition($diag, $this->visit);
+                if (isset($res['id'])) {
+                    $diag->update(['ss_condition_id' => $res['id']]);
+                }
+            }
+        }
+
+        // 3. Kirim Resep (MedicationRequest)
+        $prescriptions = $this->visit->prescriptions()->whereNull('satusehat_medication_request_id')->get();
+        $successCount = 0;
+
+        foreach ($prescriptions as $pres) {
+            $result = $service->sendPrescription($pres, $this->visit);
+
+            if (isset($result['id'])) {
+                $pres->update([
+                    'satusehat_medication_request_id' => $result['id'],
+                    'status' => 'pending', // Update status ke farmasi
+                ]);
+                $successCount++;
+            }
+        }
+
+        $this->sendPrescriptions();
+        $this->visit->refresh();
+        $this->visit->load('diagnoses');
+
+        if ($allConditionsSynced) {
+            $service->updateEncounterDiagnosis($this->visit);
+        } else {
+            $this->dispatch('notify', message: 'Beberapa diagnosa gagal sinkron. Encounter tidak diupdate.', type: 'error');
+        }
+        // $this->dispatch('notify', message: 'Seluruh data diagnosa dan resep tersinkronisasi.');
+    }
+
+    public function sendPrescriptions()
+    {
+        $service = app(SatuSehatService::class);
+
+        // Ambil resep yang belum dikirim
+        $pendingPrescriptions = $this->visit->prescriptions()->whereNull('satusehat_medication_request_id')->get();
+
+        foreach ($pendingPrescriptions as $pres) {
+            // KIRIM $this->visit ke service supaya data patient aman
+            $result = $service->sendPrescription($pres, $this->visit);
+
+            if (isset($result['id'])) {
+                $pres->update([
+                    'satusehat_medication_request_id' => $result['id'],
+                ]);
+            }
+        }
+    }
+
+    public function render()
+    {
+        $icdResults = [];
+
+        if (strlen($this->search) > 2 && !$this->selectedIcd10) {
+            // 1. Ambil semua kode ICD yang sudah diinput untuk kunjungan ini
+            $existingCodes = $this->visit->diagnoses()->pluck('icd10_code');
+
+            // 2. Cari ICD-10, tapi kecualikan yang sudah ada di list
+            $icdResults = Icd10::where(function ($query) {
+                $query->where('code', 'ilike', $this->search . '%')->orWhere('name_en', 'ilike', '%' . $this->search . '%');
+            })
+                ->whereNotIn('code', $existingCodes) // Filter di sini
+                ->limit(10)
+                ->get();
+        }
+
+        $medicineResults = [];
+
+        if (strlen($this->medicineSearch) > 2) {
+            // 1. Cek dulu di lokal supaya hemat kuota API/Bandwidth
+            $medicineResults = Medicine::where('name', 'like', '%' . $this->medicineSearch . '%')
+                ->limit(5)
+                ->get();
+
+            // 2. Jika lokal sedikit/kosong, tembak API KFA SatuSehat
+            if ($medicineResults->count() < 3) {
+                $apiResults = $this->searchKfaAction($this->medicineSearch);
+                // Kita gabungkan atau tampilkan hasil API
+                // Untuk simplifikasi, kita asumsikan dokter memilih dari hasil API
+            }
+        }
+
+        return $this->view([
+            'icdResults' => $icdResults,
+            'medicineResults' => $medicineResults,
+        ]);
+    }
 };
 ?>
 
 <div>
-    {{-- Waste no more time arguing what a good man should be, be one. - Marcus Aurelius --}}
+    <div class="max-w-7xl mx-auto py-2 px-4 sm:px-6 lg:px-6">
+        <div class="bg-white border border-brand-200 shadow rounded-lg mb-4 overflow-hidden">
+            <div class="bg-brand-600 px-4 py-3">
+                <h3 class="text-white font-bold">Pemeriksaan Pasien</h3>
+            </div>
+            <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">Nama Pasien</p>
+                    <p class="font-semibold">{{ $visit->patient->name }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">No. Rekam Medis</p>
+                    <p class="font-semibold">{{ $visit->patient->no_rm }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">Tanggal Kunjungan</p>
+                    <p class="font-semibold">{{ $visit->arrived_at->format('d M Y H:i') }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-1">
+                <div class="bg-white border border-brand-200 shadow rounded-lg p-4">
+                    <h4 class="font-bold text-gray-700 border-b pb-2 mb-4">Vital Signs</h4>
+                    @if ($visit->vitalSign)
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">TD (Tensi)</span>
+                                <span
+                                    class="font-mono font-bold text-brand-600">{{ $visit->vitalSign->systole }}/{{ $visit->vitalSign->diastole }}
+                                    <small>mmHg</small></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Berat Badan</span>
+                                <span class="font-bold">{{ $visit->vitalSign->weight ?? '-' }} <small>kg</small></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Tinggi Badan</span>
+                                <span class="font-bold">{{ $visit->vitalSign->height ?? '-' }} <small>cm</small></span>
+                            </div>
+                            <div class="flex justify-between border-t pt-2">
+                                <span class="text-gray-500 text-sm">Suhu Tubuh</span>
+                                <span class="font-bold text-brand-500">{{ $visit->vitalSign->temperature ?? '-' }}
+                                    <small>°C</small></span>
+                            </div>
+                        </div>
+                    @else
+                        <p class="text-sm italic text-gray-400">Data vital sign belum tersedia.</p>
+                    @endif
+                </div>
+            </div>
+
+            <div class="md:col-span-2">
+                <div>
+                    <div class="bg-white border border-brand-200 shadow rounded-lg p-6">
+
+                        <h4 class="font-bold text-gray-700 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    d="M10 2a8 8 0 100 16 8 8 0 000-16zM7 9a1 1 0 112 0v4a1 1 0 11-2 0V9zm5-1a1 1 0 100 2h.01a1 1 0 100-2H12z" />
+                            </svg>Input Diagnosa (ICD-10)
+                        </h4>
+
+                        <div class="relative" x-data="{ open: true }">
+                            <x-input type="text" wire:model.live="search" @input="open = true"
+                                placeholder="Ketik kode ICD-10 atau nama penyakit..." name="search" />
+
+                            @if (count($icdResults) > 0)
+                                <div x-show="open"
+                                    class="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-xl overflow-hidden">
+                                    @foreach ($icdResults as $res)
+                                        <button wire:click="selectIcd10({{ $res->id }})" @click="open = false"
+                                            class="w-full text-left px-4 py-3 hover:bg-brand-50 border-b last:border-0">
+                                            <span class="font-bold text-brand-700">[{{ $res->code }}]</span>
+                                            <span class="text-sm text-gray-700">{{ $res->name_en }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="mt-4 flex items-center justify-between">
+                            <x-toggle name="isPrimary" checked="isPrimary" wire:model="isPrimary"
+                                label="Diagnosa Utama" />
+
+                            <button wire:click="addDiagnosis"
+                                class="bg-brand-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-brand-700">
+                                Tambah ke Daftar
+                            </button>
+                        </div>
+
+                        <div class="mt-8">
+                            <h5 class="text-xs font-bold text-gray-400 uppercase tracking-wider border-b mb-3 pb-1">
+                                Daftar
+                                Diagnosa Pasien</h5>
+                            <div class="space-y-3">
+                                @foreach ($visit->diagnoses as $diag)
+                                    <div wire:key="diag-{{ $diag->id }}"
+                                        class="flex items-center justify-between p-3 {{ $diag->is_primary ? 'bg-green-50 border-brand-200' : 'bg-gray-50 border-gray-200' }} rounded-lg border transition-all">
+                                        <div class="flex items-center space-x-3">
+                                            <span
+                                                class="px-2 py-1 bg-white border border-gray-300 text-gray-700 rounded text-xs font-mono font-bold">{{ $diag->icd10_code }}</span>
+                                            <span
+                                                class="text-sm font-medium text-gray-800">{{ $diag->icd10_display }}</span>
+                                            @if ($diag->is_primary)
+                                                <span
+                                                    class="text-[10px] bg-orange-600 text-white px-2 py-0.5 rounded-full uppercase font-extrabold tracking-tighter">Primary</span>
+                                            @endif
+                                        </div>
+
+                                        <div class="flex items-center gap-2">
+                                            @if ($diag->ss_condition_id)
+                                                <span
+                                                    class="text-[10px] text-green-600 font-bold flex items-center bg-green-50 px-2 py-1 rounded">
+                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path
+                                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                                                    </svg>
+                                                    SYNCED
+                                                </span>
+                                            @else
+                                                @if (!$diag->is_primary)
+                                                    <button wire:click="setAsPrimary({{ $diag->id }})"
+                                                        class="text-[11px] text-brand-600 hover:text-brand-800 font-semibold px-2 py-1 border border-brand-200 rounded hover:bg-brand-100 transition">
+                                                        Jadikan Utama
+                                                    </button>
+                                                @endif
+
+                                                <button
+                                                    wire:click="confirmingDeleteDiagnosis({{ $diag->id }}, 'diagnosa')"
+                                                    class="text-red-400 hover:text-red-600 p-1" title="Hapus">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                        </path>
+                                                    </svg>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+
+                                @if ($visit->diagnoses->isEmpty())
+                                    <div class="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
+                                        <p class="text-sm text-gray-400 italic">Belum ada diagnosa yang ditambahkan.</p>
+                                    </div>
+                                @endif
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white border border-brand-200 shadow rounded-lg p-6 mt-4">
+                    <h4 class="font-bold text-gray-700 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M10 2a8 8 0 100 16 8 8 0 000-16zM7 9a1 1 0 112 0v4a1 1 0 11-2 0V9zm5-1a1 1 0 100 2h.01a1 1 0 100-2H12z" />
+                        </svg>
+                        Resep Obat (KFA)
+                    </h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                        {{-- Search Obat --}}
+                        <div class="relative col-span-2">
+                            <x-input type="text" wire:model.live.debounce.500ms="medicineSearch"
+                                name="medicineSearch" placeholder="Cari obat di KFA..." />
+
+                            <div class="relative" x-data="{ open: true }">
+                                @if (count($kfaResults) > 0)
+                                    <div x-show="open"
+                                        class="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-xl overflow-hidden">
+                                        @foreach ($kfaResults as $res)
+                                            {{-- Gunakan kurung siku [] dan panggil method yang benar --}}
+                                            <button wire:click="selectMedicineFromKfa({{ json_encode($res) }})"
+                                                @click="open = false"
+                                                class="w-full text-left px-4 py-3 hover:bg-brand-50 border-b last:border-0">
+                                                <span class="font-bold text-brand-700">[{{ $res['kfa_code'] }}]</span>
+                                                <span class="text-sm text-gray-700">{{ $res['name'] }}</span>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <x-input type="number" wire:model="qty" placeholder="Qty" name="quantity" />
+                        <div class="col-span-2">
+                            <x-input type="text" wire:model="instruction" name="instruction"
+                                placeholder="Aturan Pakai" />
+                        </div>
+                        <button wire:click="addPrescription"
+                            class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                            Tambah
+                        </button>
+                        {{-- </div> --}}
+                    </div>
+
+                    {{-- Daftar Resep yang sudah ditambah --}}
+                    <div class="mt-8 space-y-2">
+                        <h5 class="text-xs font-bold text-gray-400 uppercase tracking-wider border-b mb-3 pb-1">
+                            Daftar
+                            Obat Pasien</h5>
+                        @foreach ($visit->prescriptions as $pres)
+                            <div
+                                class="flex justify-between items-center p-3 bg-green-50 border border-brand-200 rounded-lg">
+                                <div>
+                                    <span class="font-bold text-gray-800">{{ $pres->medicine->display_name }}</span>
+                                    <span class="text-sm text-gray-500 ml-2">({{ $pres->quantity }}
+                                        {{ $pres->medicine->form_type }})</span>
+                                    <p class="text-xs text-red-600 italic">{{ $pres->instruction }}</p>
+                                </div>
+                                <button wire:click="confirmingDeletePrescription({{ $pres->id }})"
+                                    class="text-red-400 hover:text-red-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </div>
+                        @endforeach
+                        @if ($visit->prescriptions->isEmpty())
+                            <div class="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
+                                <p class="text-sm text-gray-400 italic">Belum ada resep yang ditambahkan.</p>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 flex justify-end">
+                    <button wire:click="syncAllToSatuSehat" wire:loading.attr="disabled"
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg shadow-md flex items-center gap-2">
+                        <span wire:loading.remove>Kirim Diagnosa ke SatuSehat</span>
+                        <span wire:loading>Memproses...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <x-confirm wire:model="confirmDeletePrescription" title="Hapus obat"
+        message="Apakah anda yakin ingin menghapus obat ini?" confirmText="Delete" action="deletePrescription" />
+    <x-confirm wire:model="confirmDeleteDiagnosa" title="Hapus diagnosa"
+        message="Apakah anda yakin ingin menghapus diagnosa ini?" confirmText="Delete" action="deleteDiagnosis" />
 </div>

@@ -117,11 +117,13 @@ new class extends Component {
         $patients = Patient::all();
         $locations = Location::all();
         $practitioners = Practitioner::all();
+        $outpatientVisits = OutpatientVisit::query()->orderBy('created_at', 'desc')->paginate(25);
 
         return $this->view([
             'patients' => $patients,
             'locations' => $locations,
             'practitioners' => $practitioners,
+            'outpatientVisits' => $outpatientVisits,
         ]);
     }
 };
@@ -132,8 +134,58 @@ new class extends Component {
 
     <x-button wire:click="openModal" class="mb-4" color="brand">Registrasi Baru</x-button>
 
-    <div x-data="{ open: @entangle('showModal') }" x-show="open" class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto"
-        x-cloak>
+    <div class="border rounded-lg overflow-x-auto shadow-sm -mx-4 px-4 md:mx-0 md:px-0">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-brand-500">
+                <tr>
+                    <th class="px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-widest">
+                        Nama
+                    </th>
+                    <th class="px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
+                        Status</th>
+                    <th class="px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
+                        L/P</th>
+                    <th class="px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
+                        Tekanan darah</th>
+                    <th class="px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
+                        Tinggi/Berat badan</th>
+                    <th class="px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
+                        Keluhan</th>
+                    <th class="px-12 py-4 text-right text-sm font-bold text-white uppercase tracking-widest">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @foreach ($outpatientVisits as $visit)
+                    <tr>
+                        <td class=" px-6 py-4">
+                            <div class="font-medium text-gray-900">{{ $visit->patient->name }}</div>
+                        </td>
+                        <td class=" px-6 py-4 text-center text-sm font-medium capitalize">
+                            {{ $visit->status }}</td>
+                        <td class=" px-6 py-4 text-center text-sm font-medium">
+                            {{ $visit->gender === 'female' ? 'Wanita' : 'Pria' }}</td>
+                        <td class=" px-6 py-4 text-center text-sm font-medium">
+                            {{ $visit->vitalSign->systole }}/{{ $visit->vitalSign->diastole }} mmHg </td>
+                        <td class=" px-6 py-4 text-center text-sm font-medium">
+                            {{ $visit->vitalSign->height }} cm /
+                            {{ number_format($visit->vitalSign->weight, 1, '.', ',') }} kg </td>
+                        <td class="px-6 py-4 text-center text-sm font-medium">
+                            {{ $visit->complaint }} </td>
+                        <td class="px-12 py-4 text-right text-sm font-medium">
+                            <a class="text-blue-600 hover:text-blue-900 cursor-pointer"
+                                href="{{ route('outpatient.diagnosis', $visit->id) }}">Input Diagnosa</a>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    <div class="md:block hidden mt-4">
+        {{ $outpatientVisits->links() }}
+    </div>
+
+    <div x-data="{ open: @entangle('showModal') }" x-show="open"
+        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto" x-cloak>
         <div class="fixed inset-0 bg-black opacity-50"></div>
         <div class="relative bg-white rounded-lg shadow-xl max-w-xl w-full p-6 dark:bg-gray-800">
             <div class="mb-5">

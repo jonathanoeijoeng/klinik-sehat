@@ -3,6 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Patient;
+use App\Models\Practitioner;
+use App\Models\Location;
+use App\Models\VitalSign;
+use App\Models\OutPatientDiagnosis;
+use App\Models\Invoice;
+use App\Models\Prescription;
+
 
 class OutpatientVisit extends Model
 {
@@ -75,4 +84,23 @@ class OutpatientVisit extends Model
     protected $casts = [
         'arrived_at' => 'datetime', // Ini kuncinya!
     ];
+
+    // App/Models/OutpatientVisit.php
+    public function diagnoses()
+    {
+        // Gunakan outpatient_visit_id sesuai nama kolom di tabel out_patient_diagnoses
+        return $this->hasMany(OutpatientDiagnosis::class, 'outpatient_visit_id')
+                    ->orderBy('is_primary', 'desc') // True (1) akan di atas False (0)
+                    ->orderBy('created_at', 'desc'); // Yang terbaru di atas jika sama-sama sekunder
+    }
+
+    public function prescriptions()
+    {
+        // Pastikan foreign key sesuai dengan yang kamu buat di migrasi
+        return $this->hasMany(Prescription::class, 'outpatient_visit_id')
+                    ->latest(); // Supaya obat yang baru diinput ada di atas
+    }
+
+    
+
 }

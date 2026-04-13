@@ -14,6 +14,14 @@ return new class extends Migration
         Schema::create('prescriptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('outpatient_visit_id')->constrained()->cascadeOnDelete();
+            
+            // --- TAMBAHKAN INI ---
+            $table->foreignId('medicine_id')->constrained()->cascadeOnDelete(); 
+            $table->string('medicine_name'); // Denormalisasi: simpan nama obat saat resep dibuat
+            $table->string('instruction')->nullable(); // Contoh: "3 x 1 sesudah makan"
+            $table->integer('quantity')->default(1);
+            $table->string('uom')->default('Pcs'); // Satuan: Tablet, Botol, dll
+            // ---------------------
 
             // Status Farmasi
             $table->enum('status', ['pending', 'preparing', 'ready', 'dispensed'])->default('pending');
@@ -22,10 +30,10 @@ return new class extends Migration
             $table->string('satusehat_medication_request_id')->nullable();
             $table->string('satusehat_medication_dispense_id')->nullable();
 
-            // Timestamp untuk TAT Farmasi
-            $table->timestamp('received_at')->nullable();    // Resep masuk ke apotek
-            $table->timestamp('started_at')->nullable();     // Mulai diracik
-            $table->timestamp('handed_over_at')->nullable(); // Diserahkan ke pasien
+            // Timestamp untuk TAT Farmasi (Turn Around Time)
+            $table->timestamp('received_at')->nullable();
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('handed_over_at')->nullable();
 
             $table->timestamps();
         });
