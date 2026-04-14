@@ -116,6 +116,7 @@ new class extends Component {
     public function selectMedicineFromKfa($kfaData)
     {
         // Tetap simpan/pastikan obat ada di Master Data (Medicine)
+        // dd($kfaData);
         $medicine = Medicine::firstOrCreate(
             ['kfa_code' => $kfaData['kfa_code']],
             [
@@ -138,6 +139,7 @@ new class extends Component {
                     // Simpan UUID yang didapat ke database Intel NUC kamu
                     $medicine->update([
                         'satusehat_medication_id' => $res['id'],
+                        'last_synced_at' => now(),
                     ]);
 
                     $this->dispatch('notify', message: 'Obat berhasil disinkronkan ke SatuSehat.', type: 'success');
@@ -165,6 +167,10 @@ new class extends Component {
 
         $data = $results['items']['data'] ?? [];
         $this->kfaResults = collect($data)
+            ->filter(function ($item) {
+                // HANYA ambil yang active-nya true DAN state-nya 'valid'
+                return ($item['active'] ?? false) === true && ($item['state'] ?? '') === 'valid';
+            })
             ->map(function ($item) {
                 $name = $item['name'] ?? '';
                 $search = strtolower($this->medicineSearch);
@@ -180,6 +186,8 @@ new class extends Component {
                     'name' => $name,
                     'display' => $item['nama_dagang'] ?? $name,
                     'form' => $item['dosage_form']['name'] ?? 'Obat',
+                    'manufacturer' => $item['manufacturer'] ?? null,
+                    'fix_price' => $item['fix_price'] ?? null,
                 ];
             })
             ->sortBy('score') // Semakin kecil posisi (0 = di depan), semakin atas
@@ -361,7 +369,7 @@ new class extends Component {
             <div class="bg-brand-600 px-4 py-3">
                 <h3 class="text-white font-bold">Pemeriksaan Pasien</h3>
             </div>
-            <div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Nama Pasien</p>
                     <p class="font-semibold">{{ $visit->patient->name }}</p>
@@ -373,6 +381,10 @@ new class extends Component {
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Tanggal Kunjungan</p>
                     <p class="font-semibold">{{ $visit->arrived_at->format('d M Y H:i') }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">Status</p>
+                    <p class="font-semibold capitalize">{{ $visit->status }}</p>
                 </div>
             </div>
         </div>
@@ -421,8 +433,8 @@ new class extends Component {
                         </h4>
 
                         <div class="relative" x-data="{ open: true }">
-                            <x-input type="text" wire:model.live="search" @input="open = true"
-                                placeholder="Ketik kode ICD-10 atau nama penyakit..." name="search" />
+                            <x-input type="text" wire:model.live="search" @input="open = true" :disabled="$visit->status === 'finished'"
+                                name="search" placeholder="Ketik kode ICD-10 atau nama penyakit..." name="search" />
 
                             @if (count($icdResults) > 0)
                                 <div x-show="open"
@@ -442,10 +454,9 @@ new class extends Component {
                             <x-toggle name="isPrimary" checked="isPrimary" wire:model="isPrimary"
                                 label="Diagnosa Utama" />
 
-                            <button wire:click="addDiagnosis"
-                                class="bg-brand-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-brand-700">
+                            <x-button wire:click="addDiagnosis" variant="brand" :disabled="$visit->status === 'finished'">
                                 Tambah ke Daftar
-                            </button>
+                            </x-button>
                         </div>
 
                         <div class="mt-8">
@@ -524,7 +535,7 @@ new class extends Component {
                         {{-- Search Obat --}}
                         <div class="relative col-span-2">
                             <x-input type="text" wire:model.live.debounce.500ms="medicineSearch"
-                                name="medicineSearch" placeholder="Cari obat di KFA..." />
+                                name="medicineSearch" placeholder="Cari obat di KFA..." :disabled="$visit->status === 'finished'" />
 
                             <div class="relative" x-data="{ open: true }">
                                 @if (count($kfaResults) > 0)
@@ -544,16 +555,15 @@ new class extends Component {
                             </div>
                         </div>
 
-                        <x-input type="number" wire:model="qty" placeholder="Qty" name="quantity" />
+                        <x-input type="number" wire:model="qty" placeholder="Qty" name="quantity"
+                            :disabled="$visit->status === 'finished'" />
                         <div class="col-span-2">
                             <x-input type="text" wire:model="instruction" name="instruction"
-                                placeholder="Aturan Pakai" />
+                                placeholder="Aturan Pakai" :disabled="$visit->status === 'finished'" />
                         </div>
-                        <button wire:click="addPrescription"
-                            class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                        <x-button wire:click="addPrescription" variant="red" :disabled="$visit->status === 'finished'">
                             Tambah
-                        </button>
-                        {{-- </div> --}}
+                        </x-button>
                     </div>
 
                     {{-- Daftar Resep yang sudah ditambah --}}
@@ -588,11 +598,12 @@ new class extends Component {
                     </div>
                 </div>
                 <div class="mt-4 pt-4 flex justify-end">
-                    <button wire:click="syncAllToSatuSehat" wire:loading.attr="disabled"
-                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg shadow-md flex items-center gap-2">
-                        <span wire:loading.remove>Kirim Diagnosa ke SatuSehat</span>
+                    <x-button wire:click="syncAllToSatuSehat" wire:loading.attr="disabled" :disabled="$visit->status === 'finished'"
+                        variant="brand">
+                        <span
+                            wire:loading.remove>{{ $visit->status === 'finished' ? 'Synced to SatuSehat' : 'Kirim Diagnosa ke SatuSehat' }}</span>
                         <span wire:loading>Memproses...</span>
-                    </button>
+                    </x-button>
                 </div>
             </div>
         </div>
