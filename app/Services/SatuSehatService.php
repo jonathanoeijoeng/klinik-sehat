@@ -677,6 +677,49 @@ class SatuSehatService
             ->post(config('services.satusehat.base_url') . '/Medication', $payload);
 
         return $response->json();
-    }   
+    }
+    
+    public function sendMedicationDispense($prescription, $visit)
+    {
+        $payload = [
+            "resourceType" => "MedicationDispense",
+            "status" => "completed",
+            "category" => [
+                [
+                    "coding" => [
+                        [
+                            "system" => "http://terminology.hl7.org/CodeSystem/medicationdispense-category",
+                            "code" => "outpatient",
+                            "display" => "Outpatient"
+                        ]
+                    ]
+                ]
+            ],
+            "medicationReference" => [
+                "reference" => "Medication/" . $prescription->medicine->satusehat_medication_id
+            ],
+            "subject" => [
+                "reference" => "Patient/" . $visit->patient->satusehat_uuid
+            ],
+            "context" => [
+                "reference" => "Encounter/" . $visit->satusehat_encounter_id
+            ],
+            "authorizingPrescription" => [
+                [
+                    "reference" => "MedicationRequest/" . $prescription->satusehat_medication_request_id
+                ]
+            ],
+            "quantity" => [
+                "value" => (int) $prescription->quantity,
+                "unit" => $prescription->unit,
+                "system" => "http://unitsofmeasure.org",
+                "code" => $prescription->unit
+            ],
+            "whenPrepared" => now()->toIso8601String(),
+            "whenHandedOver" => now()->toIso8601String(),
+        ];
+
+        return $this->post('/MedicationDispense', $payload);
+    }
 
 }

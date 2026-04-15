@@ -15,6 +15,44 @@ new class extends Component {
         $this->resetPage();
     }
 
+    public function processAll($visitId)
+    {
+        $visit = OutpatientVisit::with('prescriptions')->findOrFail($visitId);
+
+        foreach ($visit->prescriptions as $prescription) {
+            $prescription->update([
+                'status' => 'preparing',
+                'started_at' => now(),
+            ]);
+        }
+
+        $this->dispatch('toast', text: 'Semua resep mulai diproses', type: 'info');
+    }
+
+    public function sendMedicationDispense($prescriptionId)
+    {
+        $prescription = Prescription::findOrFail($prescriptionId);
+
+        // Validasi stok obat
+        if ($prescription->medicine->stock < $prescription->quantity) {
+            $this->dispatch('toast', text: 'Stok obat tidak mencukupi!', type: 'error');
+            return;
+        }
+
+        // Update status menjadi dispensed dan kurangi stok
+        $prescription->update([
+            'status' => 'dispensed',
+            'handed_over_at' => now(),
+        ]);
+
+        $prescription->medicine->decrement('stock', $prescription->quantity);
+
+        // Kirim data ke SatuSehat
+        app(SatuSehatService::class)->sendMedicationDispense($prescription);
+
+        $this->dispatch('toast', text: 'Obat berhasil disinkronkan ke SatuSehat.', type: 'success');
+    }
+
     public function render()
     {
         $pharmacies = OutpatientVisit::has('prescriptions') // Hanya ambil yang ada resepnya
@@ -58,10 +96,21 @@ new class extends Component {
                     <h3 class="font-bold text-slate-800">{{ $visit->patient->name }}</h3>
                     <p class="text-xs text-slate-500">Kunjungan: {{ $visit->arrived_at->format('d/m/Y H:i') }}</p>
                 </div>
-                <span
-                    class="px-3 py-1 rounded-full text-xs font-semibold {{ $visit->prescriptions->every('handed_over_at') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
-                    {{ $visit->prescriptions->every('handed_over_at') ? 'Selesai' : 'Perlu Diproses' }}
-                </span>
+                <div class="flex items-center">
+                    <span
+                        class="px-3 py-1 rounded-full text-xs font-semibold {{ $visit->prescriptions->every('started_at') && !$visit->prescriptions->every('handed_over_at') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
+                        {{ $visit->prescriptions->every('started_at') && !$visit->prescriptions->every('handed_over_at') ? 'Sedang di proses' : 'Perlu Diproses' }}
+                    </span>
+                    @if ($visit->prescriptions->every('started_at') && !$visit->prescriptions->every('handed_over_at'))
+                        <x-button wire:click="handOverAll({{ $visit->id }})" class="ml-4 text-sm" variant="green">
+                            Serahkan ke Pasien
+                        </x-button>
+                    @else
+                        <x-button wire:click="processAll({{ $visit->id }})" class="ml-4 text-sm" variant="orange">
+                            Proses Semua Obat
+                        </x-button>
+                    @endif
+                </div>
             </div>
 
             <div class="card-body">

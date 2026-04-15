@@ -418,7 +418,7 @@ new class extends Component {
         Bus::chain([
             new SyncConditionToSatuSehat($this->visit),
             new SyncMedicationRequestToSatuSehat($this->visit),
-            new FinalizeVisitJob($this->visit), // Job baru untuk update status & invoice
+            // new FinalizeVisitJob($this->visit), // Job baru untuk update status & invoice
         ])->dispatch();
 
         $this->dispatch('toaster', message: 'Proses sinkronisasi sedang berjalan di background.', type: 'success');
