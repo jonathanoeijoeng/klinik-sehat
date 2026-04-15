@@ -3,12 +3,20 @@
 use Livewire\Component;
 use App\Models\Patient;
 use App\Services\SatuSehatService;
+use Livewire\WithPagination;
 
 new class extends Component {
+    use WithPagination;
+
     public string $search = '';
     public $showModal = false;
     public $nik, $name, $birth_date, $satusehat_id, $phone_number, $email, $address;
     public $gender;
+
+    public function updatingSearch()
+    {
+        $this->resetPage();
+    }
 
     public function newPatient()
     {
@@ -41,7 +49,7 @@ new class extends Component {
             'address' => $this->address,
         ]);
 
-        $this->dispatch('toast', message: 'Data berhasil disimpan!', type: 'success');
+        $this->dispatch('toast', text: 'Data berhasil disimpan!', type: 'success');
         $this->closeModal();
     }
 
@@ -59,9 +67,9 @@ new class extends Component {
             $this->gender = $result['gender'];
             $this->satusehat_id = $result['satusehat_id'];
 
-            $this->dispatch('notify', message: 'Data ditemukan!', type: 'success');
+            $this->dispatch('toast', text: 'Data ditemukan!', type: 'success');
         } else {
-            $this->dispatch('notify', message: $result['message'], type: 'error');
+            $this->dispatch('toast', text: $result['message'], type: 'error');
         }
     }
 
@@ -84,7 +92,8 @@ new class extends Component {
 ?>
 
 <div>
-    <x-header header="Daftar Pasien" description="List pasien yang sudah terdaftar di sistem" />
+    <x-header header="Daftar Pasien"
+        description="Kelola data demografi pasien secara terpusat dengan integrasi NIK Nasional. Modul ini memastikan setiap pasien memiliki profil yang valid dan terhubung dengan SatuSehat Patient ID (Logical ID) guna menjamin konsistensi data rekam medis lintas fasilitas kesehatan." />
     <div class="flex flex-col md:flex-row md:items-center md:justify-between">
         <x-input wire:model.live.debounce.100ms="search" name="search" placeholder="Cari pasien..."
             class="mb-4 md:max-w-lg w-full" />

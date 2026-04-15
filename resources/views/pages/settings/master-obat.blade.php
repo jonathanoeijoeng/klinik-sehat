@@ -29,7 +29,7 @@ new class extends Component {
         if ($this->editingId) {
             $medicine = Medicine::findOrFail($this->editingId);
             $medicine->update(['het_price' => $this->het_price]);
-            $this->dispatch('notify', message: 'Harga obat berhasil diperbarui!', type: 'success');
+            $this->dispatch('toast', text: 'Harga obat berhasil diperbarui!', type: 'success');
         }
         $this->closeModal();
     }
@@ -91,7 +91,7 @@ new class extends Component {
             $this->showModal = false; // Pastikan ini diset false
         } catch (\Exception $e) {
             \Log::error($e->getMessage());
-            $this->dispatch('notify', message: 'Terjadi kesalahan!', type: 'error');
+            $this->dispatch('toast', text: 'Terjadi kesalahan!', type: 'error');
         }
     }
 
@@ -100,7 +100,7 @@ new class extends Component {
         $medicine = Medicine::findOrFail($id);
 
         if (!$medicine->kfa_code) {
-            $this->dispatch('notify', message: 'Kode KFA wajib diisi!', type: 'error');
+            $this->dispatch('toast', text: 'Kode KFA wajib diisi!', type: 'error');
             return;
         }
 
@@ -112,11 +112,11 @@ new class extends Component {
                 'satusehat_medication_id' => $response['id'],
                 'last_synced_at' => now(),
             ]);
-            $this->dispatch('notify', message: 'Obat berhasil didaftarkan!', type: 'success');
+            $this->dispatch('toast', text: 'Obat berhasil didaftarkan!', type: 'success');
         } else {
             // Log error jika gagal untuk debugging di server
             \Log::error("Gagal Sync Obat ID {$id}: ", $response);
-            $this->dispatch('notify', message: 'Gagal: ' . ($response['issue'][0]['details']['text'] ?? 'Error tidak diketahui'), type: 'error');
+            $this->dispatch('toast', text: 'Gagal: ' . ($response['issue'][0]['details']['text'] ?? 'Error tidak diketahui'), type: 'error');
         }
     }
 

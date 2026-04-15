@@ -7,9 +7,10 @@ new class extends Component {
     public function render()
     {
         $todayVisits = OutpatientVisit::with(['patient', 'invoice'])
-            ->whereDate('arrived_at', now())
+            ->whereBetween('arrived_at', [now()->startOfMonth(), now()->endOfMonth()])
             ->latest()
             ->get();
+        // dd($todayVisits);
 
         // Hitung stats dari koleksi $todayVisits menggunakan method isSynced()
         $total = $todayVisits->count();
@@ -27,7 +28,8 @@ new class extends Component {
 ?>
 
 <div>
-    <x-header header="Dashboard" description="" />
+    <x-header header="Dashboard"
+        description="Visualisasi real-time performa klinik, mulai dari volume kunjungan pasien, status antrean farmasi, hingga kesehatan integrasi API SatuSehat. Pantau data transaksi harian dan distribusi diagnosa penyakit secara akurat untuk mendukung pengambilan keputusan klinis dan operasional." />
     <div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="bg-blue-100 p-4 rounded-lg shadow">
@@ -60,7 +62,7 @@ new class extends Component {
                 <tbody>
                     @foreach ($todayVisits as $visit)
                         <tr class="border-b">
-                            <td class="px-5 py-4 text-sm">{{ $visit->arrived_at->format('H:i') }}</td>
+                            <td class="px-5 py-4 text-sm">{{ $visit->arrived_at->format('d-M-Y H:i') }}</td>
                             <td class="px-5 py-4 text-sm font-medium">{{ $visit->visit_number }}</td>
                             <td class="px-5 py-4 text-sm">{{ $visit->patient->name }}</td>
                             <td class="px-5 py-4 text-sm">

@@ -150,7 +150,8 @@ new class extends Component {
 ?>
 
 <div>
-    <x-header header="Rawat Jalan" description="" />
+    <x-header header="Rawat Jalan"
+        description="Pusat kendali aktivitas klinis mulai dari pemeriksaan tanda-tanda vital (Observation), penegakan diagnosa (Condition), hingga pemberian tindakan medis (Procedure). Seluruh data medis dipetakan menggunakan standar kodifikasi ICD-10 dan ICD-9-CM untuk sinkronisasi otomatis ke Resume Medis SatuSehat." />
 
     <x-button wire:click="openModal" class="mb-4" color="brand">Registrasi Baru</x-button>
 

@@ -11,6 +11,13 @@ use App\Services\SatuSehatService;
 use App\Models\Prescription;
 use Illuminate\Support\Facades\DB;
 use App\Models\Invoice;
+use App\Models\Patient;
+use App\Models\Practitioner;
+use App\Jobs\SyncEncounterToSatuSehat;
+use App\Jobs\SyncConditionToSatuSehat;
+use App\Jobs\SyncMedicationRequestToSatuSehat;
+use App\Jobs\FinalizeVisitJob;
+use Illuminate\Support\Facades\Bus;
 
 new class extends Component {
     public OutpatientVisit $visit;
@@ -90,7 +97,7 @@ new class extends Component {
 
         // Jangan izinkan hapus jika sudah sinkron ke SatuSehat
         if ($diag->satusehat_condition_id) {
-            $this->dispatch('notify', type: 'error', message: 'Data yang sudah sinkron tidak bisa dihapus!');
+            $this->dispatch('toast', type: 'error', message: 'Data yang sudah sinkron tidak bisa dihapus!');
             return;
         }
 
@@ -115,12 +122,28 @@ new class extends Component {
         ]);
     }
 
-    public function selectMedicineFromKfa($kfaData)
+    public function selectMedicineFromKfa($kfaCode)
     {
-        // Tetap simpan/pastikan obat ada di Master Data (Medicine)
-        // dd($kfaData);
-        $medicine = Medicine::firstOrCreate(
-            ['kfa_code' => $kfaData['kfa_code']],
+        // 1. Cek apakah obat sudah ada di database lokal dan sudah tersinkron ke SatuSehat
+        $medicine = Medicine::where('kfa_code', $kfaCode)->first();
+
+        if ($medicine && $medicine->satusehat_medication_id) {
+            $this->selectedMedicineId = $medicine->id;
+            $this->medicineSearch = $medicine->display_name;
+            $this->kfaResults = [];
+            return;
+        }
+
+        // 2. Jika belum ada di lokal atau belum tersinkron, ambil data dari list pencarian
+        $kfaData = collect($this->kfaResults)->firstWhere('kfa_code', $kfaCode);
+
+        if (!$kfaData) {
+            return;
+        }
+
+        // 3. Simpan atau Update data obat di database lokal
+        $medicine = Medicine::updateOrCreate(
+            ['kfa_code' => $kfaCode],
             [
                 'name' => $kfaData['name'],
                 'display_name' => $kfaData['display'] ?? $kfaData['name'],
@@ -130,6 +153,7 @@ new class extends Component {
             ],
         );
 
+        // 4. Sinkronisasi ke SatuSehat hanya jika ID medication masih kosong
         if (!$medicine->satusehat_medication_id) {
             try {
                 $service = app(SatuSehatService::class);
@@ -144,11 +168,11 @@ new class extends Component {
                         'last_synced_at' => now(),
                     ]);
 
-                    $this->dispatch('notify', message: 'Obat berhasil disinkronkan ke SatuSehat.', type: 'success');
+                    $this->dispatch('toast', text: 'Obat berhasil disinkronkan ke SatuSehat.', type: 'success');
                 } else {
                     // Log error jika API SatuSehat memberikan issue
                     \Log::error('SatuSehat Medication Error:', $res);
-                    $this->dispatch('notify', message: 'Obat disimpan lokal, tapi gagal sync SatuSehat.', type: 'warning');
+                    $this->dispatch('toast', text: 'Obat disimpan lokal, tapi gagal sync SatuSehat.', type: 'warning');
                 }
             } catch (\Exception $e) {
                 \Log::error('Gagal akses API SatuSehat: ' . $e->getMessage());
@@ -197,13 +221,55 @@ new class extends Component {
             ->toArray();
     }
 
-    public function updatedMedicineSearch()
+    public function updatedMedicineSearch($value)
     {
-        if (strlen($this->medicineSearch) < 3) {
+        // Jika user merubah teks setelah memilih, kita reset ID-nya agar bisa cari ulang
+        if ($this->selectedMedicineId) {
+            $medicine = Medicine::find($this->selectedMedicineId);
+            if ($medicine && $value !== $medicine->display_name) {
+                $this->selectedMedicineId = null;
+            } else {
+                // Jika nilai sama dengan yang dipilih (karena programmatically set), jangan cari lagi
+                return;
+            }
+        }
+
+        if (empty($value)) {
             $this->kfaResults = [];
             return;
         }
 
+        if (strlen($value) < 4) {
+            $this->kfaResults = [];
+            return;
+        }
+
+        // 1. Cek Database Lokal dulu (Cari berdasarkan nama atau KFA Code)
+        // Gunakan limit agar tidak memberatkan render
+        $localMedicines = Medicine::where('name', 'like', '%' . $value . '%')
+            ->orWhere('display_name', 'like', '%' . $value . '%')
+            ->orWhere('kfa_code', 'like', '%' . $value . '%')
+            ->limit(5)
+            ->get();
+
+        if ($localMedicines->isNotEmpty()) {
+            // Transform data lokal agar formatnya sama dengan hasil KFA
+            $this->kfaResults = $localMedicines
+                ->map(function ($med) {
+                    return [
+                        'kfa_code' => $med->kfa_code,
+                        'name' => $med->name,
+                        'display' => $med->display_name,
+                        'is_local' => true, // Penanda bahwa ini data dari NUC
+                    ];
+                })
+                ->toArray();
+            // Jika sudah ada hasil lokal yang cukup akurat, kita bisa STOP di sini
+            // atau tetap lanjut cari ke KFA jika user ingin variasi lain
+            return;
+        }
+
+        // 2. Jika di lokal tidak ada, baru tembak API SatuSehat (KFA)
         $this->searchKfaAction();
     }
 
@@ -245,92 +311,118 @@ new class extends Component {
         $this->visit->load('prescriptions'); // Refresh list resep di bawah
     }
 
+    // public function syncAllToSatuSehat()
+    // {
+    //     if (!$this->visit->patient) {
+    //         $this->dispatch('toast', text: 'Error: Data pasien tidak ditemukan.', type: 'error');
+    //         return;
+    //     }
+
+    //     $service = app(SatuSehatService::class);
+    //     $allSynced = true;
+
+    //     // 1. Kirim Diagnosa
+    //     foreach ($this->visit->diagnoses as $diag) {
+    //         if (!$diag->satusehat_condition_id) {
+    //             $res = $service->sendCondition($diag, $this->visit);
+    //             if (isset($res['id'])) {
+    //                 $diag->update(['satusehat_condition_id' => $res['id']]);
+    //             } else {
+    //                 $allSynced = false; // Tandai jika ada yang gagal
+    //             }
+    //         }
+    //     }
+
+    //     // 2. Kirim Resep
+    //     $prescriptions = $this->visit->prescriptions()->whereNull('satusehat_medication_request_id')->get();
+    //     foreach ($prescriptions as $pres) {
+    //         $result = $service->sendMedicationRequest($pres, $this->visit);
+    //         if (isset($result['id'])) {
+    //             $pres->update([
+    //                 'satusehat_medication_request_id' => $result['id'],
+    //                 'status' => 'pending',
+    //             ]);
+    //         } else {
+    //             $allSynced = false; // Tandai jika resep gagal
+    //         }
+    //     }
+
+    //     // 3. Update Encounter ke 'finished' HANYA jika semuanya sukses
+    //     if ($allSynced) {
+    //         $this->visit->refresh();
+    //         $this->visit->load('diagnoses');
+
+    //         $resEncounter = $service->updateEncounterStatusAndDiagnosis($this->visit, 'finished');
+
+    //         if (isset($resEncounter['id'])) {
+    //             // Menambahkan logika untuk update invoice setelah encounter selesai
+    //             DB::transaction(function () {
+    //                 // 1. Update Status Visit (Seperti sebelumnya)
+    //                 $this->visit->update([
+    //                     'status' => 'finished',
+    //                     'finished_at' => now(),
+    //                 ]);
+
+    //                 // 2. Load relasi agar tidak lambat (Eager Loading)
+    //                 $this->visit->load('prescriptions.medicine');
+
+    //                 // 3. Hitung TOTAL kumulatif dari semua obat
+    //                 $totalMedicineFee = $this->visit->prescriptions->reduce(function ($carry, $prescription) {
+    //                     $price = $prescription->medicine->het_price ?? 0;
+    //                     $qty = $prescription->quantity ?? 0;
+
+    //                     // Menambahkan (Harga x Qty) ke total sebelumnya
+    //                     return $carry + $price * $qty;
+    //                 }, 0);
+
+    //                 // 4. Update ke tabel Invoice
+    //                 $invoice = Invoice::where('visit_id', $this->visit->id)->first();
+
+    //                 if ($invoice) {
+    //                     $doctorFee = $this->visit->practitioner->fee ?? 0;
+
+    //                     $invoice->update([
+    //                         'doctor_fee' => $doctorFee,
+    //                         'medicine_total' => $totalMedicineFee,
+    //                         'grand_total' => $doctorFee + $totalMedicineFee + $invoice->registration_fee, // Total tagihan akhir
+    //                     ]);
+    //                 }
+    //             });
+
+    //             $this->dispatch('toast', text: 'Data tersinkron dan kunjungan selesai!', type: 'success');
+    //             return redirect()->route('out-patients.index');
+    //         } else {
+    //             $this->dispatch('toast', text: 'Gagal update status Encounter ke SatuSehat.', type: 'error');
+    //         }
+    //     } else {
+    //         $this->dispatch('toast', text: 'Ada data yang gagal sinkron. Periksa kembali diagnosa/resep.', type: 'error');
+    //     }
+    // }
+
     public function syncAllToSatuSehat()
     {
         if (!$this->visit->patient) {
-            $this->dispatch('notify', message: 'Error: Data pasien tidak ditemukan.', type: 'error');
+            $this->dispatch('toast', text: 'Error: Data pasien tidak ditemukan.', type: 'error');
             return;
         }
 
-        $service = app(SatuSehatService::class);
-        $allSynced = true;
-
-        // 1. Kirim Diagnosa
-        foreach ($this->visit->diagnoses as $diag) {
-            if (!$diag->satusehat_condition_id) {
-                $res = $service->sendCondition($diag, $this->visit);
-                if (isset($res['id'])) {
-                    $diag->update(['satusehat_condition_id' => $res['id']]);
-                } else {
-                    $allSynced = false; // Tandai jika ada yang gagal
-                }
-            }
+        // Pastikan Encounter ID sudah ada sebelum lanjut
+        if (!$this->visit->satusehat_encounter_id) {
+            // Jika belum ada, paksa kirim Encounter dulu
+            SyncEncounterToSatuSehat::dispatch($this->visit);
+            $this->dispatch('toaster', message: 'Memulai sinkronisasi Encounter...', type: 'info');
+            return;
         }
 
-        // 2. Kirim Resep
-        $prescriptions = $this->visit->prescriptions()->whereNull('satusehat_medication_request_id')->get();
-        foreach ($prescriptions as $pres) {
-            $result = $service->sendMedicationRequest($pres, $this->visit);
-            if (isset($result['id'])) {
-                $pres->update([
-                    'satusehat_medication_request_id' => $result['id'],
-                    'status' => 'pending',
-                ]);
-            } else {
-                $allSynced = false; // Tandai jika resep gagal
-            }
-        }
+        // Gunakan Chaining agar urutannya: Diagnosa -> Resep -> Selesai
+        Bus::chain([
+            new SyncConditionToSatuSehat($this->visit),
+            new SyncMedicationRequestToSatuSehat($this->visit),
+            new FinalizeVisitJob($this->visit), // Job baru untuk update status & invoice
+        ])->dispatch();
 
-        // 3. Update Encounter ke 'finished' HANYA jika semuanya sukses
-        if ($allSynced) {
-            $this->visit->refresh();
-            $this->visit->load('diagnoses');
-
-            $resEncounter = $service->updateEncounterStatusAndDiagnosis($this->visit, 'finished');
-
-            if (isset($resEncounter['id'])) {
-                // Menambahkan logika untuk update invoice setelah encounter selesai
-                DB::transaction(function () {
-                    // 1. Update Status Visit (Seperti sebelumnya)
-                    $this->visit->update([
-                        'status' => 'finished',
-                        'finished_at' => now(),
-                    ]);
-
-                    // 2. Load relasi agar tidak lambat (Eager Loading)
-                    $this->visit->load('prescriptions.medicine');
-
-                    // 3. Hitung TOTAL kumulatif dari semua obat
-                    $totalMedicineFee = $this->visit->prescriptions->reduce(function ($carry, $prescription) {
-                        $price = $prescription->medicine->het_price ?? 0;
-                        $qty = $prescription->quantity ?? 0;
-
-                        // Menambahkan (Harga x Qty) ke total sebelumnya
-                        return $carry + $price * $qty;
-                    }, 0);
-
-                    // 4. Update ke tabel Invoice
-                    $invoice = Invoice::where('visit_id', $this->visit->id)->first();
-
-                    if ($invoice) {
-                        $doctorFee = $this->visit->practitioner->fee ?? 0;
-
-                        $invoice->update([
-                            'doctor_fee' => $doctorFee,
-                            'medicine_total' => $totalMedicineFee,
-                            'grand_total' => $doctorFee + $totalMedicineFee + $invoice->registration_fee, // Total tagihan akhir
-                        ]);
-                    }
-                });
-
-                $this->dispatch('notify', message: 'Data tersinkron dan kunjungan selesai!', type: 'success');
-                return redirect()->route('out-patients.index');
-            } else {
-                $this->dispatch('notify', message: 'Gagal update status Encounter ke SatuSehat.', type: 'error');
-            }
-        } else {
-            $this->dispatch('notify', message: 'Ada data yang gagal sinkron. Periksa kembali diagnosa/resep.', type: 'error');
-        }
+        $this->dispatch('toaster', message: 'Proses sinkronisasi sedang berjalan di background.', type: 'success');
+        return redirect()->route('out-patients.index');
     }
 
     public function sendPrescriptions()
@@ -354,6 +446,11 @@ new class extends Component {
 
     public function render()
     {
+        $this->visit->load([
+            'diagnoses',
+            'prescriptions.medicine', // Sangat penting untuk list obat
+        ]);
+
         $icdResults = [];
 
         if (strlen($this->search) > 2 && !$this->selectedIcd10) {
@@ -369,25 +466,8 @@ new class extends Component {
                 ->get();
         }
 
-        $medicineResults = [];
-
-        if (strlen($this->medicineSearch) > 2) {
-            // 1. Cek dulu di lokal supaya hemat kuota API/Bandwidth
-            $medicineResults = Medicine::where('name', 'like', '%' . $this->medicineSearch . '%')
-                ->limit(5)
-                ->get();
-
-            // 2. Jika lokal sedikit/kosong, tembak API KFA SatuSehat
-            if ($medicineResults->count() < 3) {
-                $apiResults = $this->searchKfaAction($this->medicineSearch);
-                // Kita gabungkan atau tampilkan hasil API
-                // Untuk simplifikasi, kita asumsikan dokter memilih dari hasil API
-            }
-        }
-
         return $this->view([
             'icdResults' => $icdResults,
-            'medicineResults' => $medicineResults,
         ]);
     }
 };
@@ -563,26 +643,24 @@ new class extends Component {
 
                     <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
                         {{-- Search Obat --}}
-                        <div class="relative col-span-2">
-                            <x-input type="text" wire:model.live.debounce.500ms="medicineSearch"
-                                name="medicineSearch" placeholder="Cari obat di KFA..." :disabled="$visit->status === 'finished'" />
+                        <div class="relative col-span-2" x-data="{ open: false }">
+                            <x-input type="text" wire:model.live.debounce.500ms="medicineSearch" @input="open = true"
+                                @focus="open = true" name="medicineSearch" placeholder="Cari obat di KFA..."
+                                :disabled="$visit->status === 'finished'" />
 
-                            <div class="relative" x-data="{ open: true }">
-                                @if (count($kfaResults) > 0)
-                                    <div x-show="open"
-                                        class="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-xl overflow-hidden">
-                                        @foreach ($kfaResults as $res)
-                                            {{-- Gunakan kurung siku [] dan panggil method yang benar --}}
-                                            <button wire:click="selectMedicineFromKfa({{ json_encode($res) }})"
-                                                @click="open = false"
-                                                class="w-full text-left px-4 py-3 hover:bg-brand-50 border-b last:border-0">
-                                                <span class="font-bold text-brand-700">[{{ $res['kfa_code'] }}]</span>
-                                                <span class="text-sm text-gray-700">{{ $res['name'] }}</span>
-                                            </button>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </div>
+                            @if (count($kfaResults) > 0)
+                                <div x-show="open" @click.away="open = false"
+                                    class="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-xl overflow-hidden">
+                                    @foreach ($kfaResults as $res)
+                                        {{-- Gunakan kurung siku [] dan panggil method yang benar --}}
+                                        <button wire:click="selectMedicineFromKfa('{{ $res['kfa_code'] }}')"
+                                            @click="open = false" class="w-full text-left px-4 py-3 ...">
+                                            <span class="font-bold text-brand-700">[{{ $res['kfa_code'] }}]</span>
+                                            <span class="text-sm text-gray-700">{{ $res['name'] }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
 
                         <x-input type="number" wire:model="qty" placeholder="Qty" name="quantity"
@@ -602,8 +680,16 @@ new class extends Component {
                             Daftar
                             Obat Pasien</h5>
                         @foreach ($visit->prescriptions as $pres)
+                            @php
+                                $statusClasses = match ($pres->status) {
+                                    'pending' => 'border-l-orange-500 bg-orange-50/30',
+                                    'preparing', 'ready' => 'border-l-yellow-400 bg-yellow-50/30',
+                                    'dispensed' => 'border-l-emerald-500 bg-emerald-50/30',
+                                    default => 'border-l-gray-300 bg-gray-50',
+                                };
+                            @endphp
                             <div
-                                class="flex justify-between items-center p-3 bg-green-50 border border-brand-200 rounded-lg">
+                                class="flex justify-between items-center p-3 border-l-8 {{ $statusClasses }} border-y border-r rounded-lg shadow-sm transition-colors">
                                 <div>
                                     <span class="font-bold text-gray-800">{{ $pres->medicine->display_name }}</span>
                                     <span class="text-sm text-gray-500 ml-2">({{ $pres->quantity }}

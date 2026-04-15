@@ -14,6 +14,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('/out-patients', 'pages::out-patients.index')->name('out-patients.index');
     Route::livewire('/outpatient/{visit}/diagnosis', 'pages::diagnosa.index')->name('outpatient.diagnosis');
 
+    // Farmasi
+    Route::livewire('/pharmacy', 'pages::pharmacy.index')->name('pharmacy.index');
+
     // Settings
     Route::livewire('/settings/master-obat', 'pages::settings.master-obat')->name('settings.master-obat');
 });

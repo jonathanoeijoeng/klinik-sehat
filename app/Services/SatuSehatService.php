@@ -492,8 +492,8 @@ class SatuSehatService
         if (!$medicine->satusehat_medication_id) {
             // Pastikan kode KFA ada sebelum mencoba sync
             if (!$medicine->kfa_code) {
-                return $this->dispatch('notify', 
-                    message: "Gagal: Kode KFA untuk {$medicine->name} belum diisi!", 
+                return $this->dispatch('toast', 
+                    text: "Gagal: Kode KFA untuk {$medicine->name} belum diisi!", 
                     type: 'error'
                 );
             }
@@ -505,8 +505,8 @@ class SatuSehatService
                 $medicine->update(['satusehat_medication_id' => $resMed['id']]);
                 $medicine->refresh(); // Segarkan data di memory
             } else {
-                return $this->dispatch('notify', 
-                    message: "Gagal mendaftarkan master obat ke SatuSehat.", 
+                return $this->dispatch('toast', 
+                    text: "Gagal mendaftarkan master obat ke SatuSehat.", 
                     type: 'error'
                 );
             }
@@ -516,11 +516,14 @@ class SatuSehatService
         $resRequest = $service->sendMedicationRequest($prescription, $this->visit);
 
         if (isset($resRequest['id'])) {
-            $prescription->update(['satusehat_request_id' => $resRequest['id']]);
-            $this->dispatch('notify', message: 'Resep berhasil terkirim!', type: 'success');
+            $prescription->update([
+                'satusehat_request_id' => $resRequest['id'],
+                'received_at' => now(),
+                ]);
+            $this->dispatch('toast', text: 'Resep berhasil terkirim!', type: 'success');
         } else {
-            $this->dispatch('notify', 
-                message: 'Gagal kirim resep: ' . ($resRequest['issue'][0]['details']['text'] ?? 'Unknown Error'), 
+            $this->dispatch('toast', 
+                text: 'Gagal kirim resep: ' . ($resRequest['issue'][0]['details']['text'] ?? 'Unknown Error'), 
                 type: 'error'
             );
         }
