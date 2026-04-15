@@ -74,7 +74,7 @@ class SatuSehatService
     {
         $token = $this->getToken();
         $response = Http::withToken($token)
-            ->get(config('services.satusehat.base_url') . "/Patient", [
+            ->get($this->baseUrl . "/Patient", [
                 'identifier' => "https://fhir.kemkes.go.id/id/nik|$nik"
             ]);
 
@@ -355,7 +355,7 @@ class SatuSehatService
         $encounterId = $visit->satusehat_encounter_id;
 
         $response = Http::withToken($token)
-            ->get(config('services.satusehat.base_url') . "/Encounter/{$encounterId}");
+            ->get($this->baseUrl . "/Encounter/{$encounterId}");
 
         $currentEncounter = $response->json();
         $now = now()->toIso8601String();
@@ -416,7 +416,7 @@ class SatuSehatService
 
         // 5. Kirim Balik
         $updateResponse = Http::withToken($token)
-            ->put(config('services.satusehat.base_url') . "/Encounter/{$encounterId}", $currentEncounter);
+            ->put($this->baseUrl . "/Encounter/{$encounterId}", $currentEncounter);
 
         return $updateResponse->json();
     }
@@ -469,7 +469,7 @@ class SatuSehatService
         ];
 
         $response = Http::withToken($token)
-            ->post(config('services.satusehat.base_url') . '/Condition', $payload);
+            ->post($this->baseUrl . '/Condition', $payload);
 
         $resJson = $response->json();
 
@@ -613,17 +613,17 @@ class SatuSehatService
         ];
 
         // Logging Payload sebelum dikirim
-        \Log::info("SatuSehat MedicationRequest Payload:", [
-            'url' => config('services.satusehat.base_url') . '/MedicationRequest',
+        Log::info("SatuSehat MedicationRequest Payload:", [
+            'url' => $this->baseUrl . '/MedicationRequest',
             'body' => $payload
         ]);
 
         return Http::withToken($this->getToken())
-            ->post(config('services.satusehat.base_url') . '/MedicationRequest', $payload)
+            ->post($this->baseUrl . '/MedicationRequest', $payload)
             ->json();
 
         // Logging Response dari SatuSehat
-        \Log::info("SatuSehat MedicationRequest Response:", [
+        Log::info("SatuSehat MedicationRequest Response:", [
             'status' => $response->status(),
             'response' => $result
         ]);
@@ -676,7 +676,7 @@ class SatuSehatService
         ];
 
         $response = Http::withToken($token)
-            ->post(config('services.satusehat.base_url') . '/Medication', $payload);
+            ->post($this->baseUrl . '/Medication', $payload);
 
         return $response->json();
     }
@@ -686,28 +686,23 @@ class SatuSehatService
         $prescription = Prescription::with(['medicine', 'visit.patient'])->findOrFail($prescriptionId);
         $visit = $prescription->visit;
 
-        // VALIDASI: Pastikan UUID Pasien ada sebelum kirim
-        if (!$visit->patient->satusehat_uuid) {
-            return ['error' => 'Pasien belum memiliki SatuSehat UUID'];
-        }
-
         $payload = [
             "resourceType" => "MedicationDispense",
             "identifier" => [
                 [
-                    "system" => "http://sys-ids.kemkes.go.id/medicationdispense/" . config('satusehat.organization_id'),
-                    "value" => "DISP-" . $prescription->id // ID Unik dari DB Lokal kamu
+                    // Perbaikan Rule 10389: Gunakan ID Organisasi (Angka)
+                    "system" => "http://sys-ids.kemkes.go.id/prescription/" . $this->organizationId,
+                    "value" => "DISP-" . $prescription->id
                 ]
             ],
             "status" => "completed",
             "category" => [
-                [
-                    "coding" => [
-                        [
-                            "system" => "http://terminology.hl7.org/CodeSystem/v3-ActCode",
-                            "code" => "OP",
-                            "display" => "Outpatient"
-                        ]
+                "coding" => [
+                    [
+                        // Perbaikan Rule 10048: Tambahkan /fhir/ di URL
+                        "system" => "http://terminology.hl7.org/fhir/CodeSystem/medicationdispense-category",
+                        "code" => "community",
+                        "display" => "Community"
                     ]
                 ]
             ],
@@ -715,7 +710,7 @@ class SatuSehatService
                 "reference" => "Medication/" . $prescription->medicine->satusehat_medication_id
             ],
             "subject" => [
-                "reference" => "Patient/" . $visit->patient->satusehat_uuid
+                "reference" => "Patient/" . $visit->patient->satusehat_id
             ],
             "context" => [
                 "reference" => "Encounter/" . $visit->satusehat_encounter_id
@@ -726,16 +721,10 @@ class SatuSehatService
                 ]
             ],
             "quantity" => [
-                "value" => (int) $prescription->quantity,
+                "value" => (float) $prescription->quantity,
                 "unit" => $prescription->unit,
-                "system" => "http://unitsofmeasure.org",
-                "code" => $prescription->unit
-            ],
-            "daysSupply" => [
-                "value" => (int) $prescription->days, // Pastikan ada kolom days/hari
-                "unit" => "Day",
-                "system" => "http://unitsofmeasure.org",
-                "code" => "d"
+                "system" => "http://terminology.hl7.org/CodeSystem/v3-orderableDrugForm", // Sesuaikan dengan contoh
+                "code" => "TAB" // Sesuaikan dengan database kamu, misal TAB/CAPS
             ],
             "whenPrepared" => now()->toIso8601String(),
             "whenHandedOver" => now()->toIso8601String(),

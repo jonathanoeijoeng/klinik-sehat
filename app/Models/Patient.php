@@ -24,4 +24,15 @@ class Patient extends Model
         'village_code',
         'last_sync_at',
     ];
+
+    public function getAgeAttribute()
+    {
+        return \Carbon\Carbon::parse($this->birth_date)->age;
+    }
+
+    public function getAgeStringAttribute()
+    {
+        $diff = \Carbon\Carbon::parse($this->birth_date)->diff(now());
+        return "{$diff->y} th, {$diff->m} bln, {$diff->d} hr";
+    }
 }

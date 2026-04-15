@@ -13,7 +13,7 @@ use App\Jobs\SyncEncounterToSatuSehat;
 use App\Services\SatuSehatService;
 
 new class extends Component {
-    public $patient_id = 1;
+    public $patient_id;
     public $practitioner_id = 1;
     public $location_id = 1;
     public $complaint = 'Batuk';
@@ -23,6 +23,7 @@ new class extends Component {
     public $height = 170;
     public $temperature = 36.5;
     public $registration_fee = 50000;
+    public $age = '';
 
     public $showModal = false;
 
@@ -30,6 +31,17 @@ new class extends Component {
     {
         $this->reset(['patient_id', 'practitioner_id', 'location_id', 'registration_fee']);
         $this->showModal = true;
+    }
+
+    public function updatedPatientId($value)
+    {
+        if ($value) {
+            $patient = Patient::find($value);
+            // Mengambil umur dari accessor yang kamu buat di model
+            $this->age = $patient->age_string;
+        } else {
+            $this->currentAge = null;
+        }
     }
 
     public function closeModal()
@@ -218,12 +230,18 @@ new class extends Component {
             <flux:separator />
 
             <div class="space-y-4 mt-4">
-                <x-select wire:model="patient_id" name="patient_id" label="Nama Pasien">
-                    <option value="">-- Pilih Pasien --</option>
-                    @foreach ($patients as $patient)
-                        <option value="{{ $patient->id }}">{{ $patient->name }}</option>
-                    @endforeach
-                </x-select>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-2">
+                        <x-select wire:model.live="patient_id" name="patient_id" label="Nama Pasien">
+                            <option value="">-- Pilih Pasien --</option>
+                            @foreach ($patients as $patient)
+                                <option value="{{ $patient->id }}">{{ $patient->name }}</option>
+                            @endforeach
+                        </x-select>
+                    </div>
+                    <x-input wire:model="age" name="age" label="Usia" class="mb-4" :disabled="true" />
+                </div>
+
 
                 <div class="grid grid-cols-2 gap-4">
                     <x-select wire:model="location_id" name="location_id" label="Nama Poliklinik">

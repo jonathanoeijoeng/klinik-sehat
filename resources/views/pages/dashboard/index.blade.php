@@ -2,8 +2,39 @@
 
 use Livewire\Component;
 use App\Models\OutpatientVisit;
+use App\Models\Prescription;
+use App\Models\OutPatientDiagnosis;
 
 new class extends Component {
+    public $stats = [];
+
+    public function mount()
+    {
+        $this->refreshStats();
+    }
+
+    public function refreshStats()
+    {
+        $this->stats = [
+            // Encounter
+            'encounter_total' => OutpatientVisit::count(),
+            'encounter_success' => OutpatientVisit::whereNotNull('satusehat_encounter_id')->count(),
+
+            // Condition (Diagnosa)
+            // Kita hitung dari tabel diagnosa/condition langsung
+            'condition_total' => OutPatientDiagnosis::count(),
+            'condition_success' => OutPatientDiagnosis::whereNotNull('satusehat_condition_id')->count(),
+
+            // Medication Request (Resep)
+            'prescription_total' => Prescription::count(),
+            'prescription_success' => Prescription::whereNotNull('satusehat_medication_request_id')->count(),
+
+            // Medication Dispense (Penyerahan Obat)
+            'dispense_total' => Prescription::count(),
+            'dispense_success' => Prescription::whereNotNull('satusehat_medication_dispense_id')->count(),
+        ];
+    }
+
     public function render()
     {
         $todayVisits = OutpatientVisit::with(['patient', 'invoice'])
@@ -46,7 +77,114 @@ new class extends Component {
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            <div
+                class="p-5 {{ $stats['encounter_total'] - $stats['encounter_success'] === 0 ? 'bg-orange-100' : 'bg-red-200' }} shadow rounded-xl border border-gray-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Status Encounter</h3>
+                    <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">
+                        {{ number_format($stats['encounter_success']) }}/{{ number_format($stats['encounter_total']) }}
+                    </span>
+                </div>
+
+                @php
+                    $condPercent =
+                        $stats['encounter_total'] > 0
+                            ? ($stats['encounter_success'] / $stats['encounter_total']) * 100
+                            : 0;
+                @endphp
+
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: {{ $condPercent }}%"></div>
+                </div>
+
+                <p class="mt-2 text-xs text-gray-400">
+                    {{ number_format($stats['encounter_total'] - $stats['encounter_success']) }} encounter belum
+                    tersinkron
+                </p>
+            </div>
+            <div
+                class="p-5 {{ $stats['condition_total'] - $stats['condition_success'] === 0 ? 'bg-pink-100' : 'bg-red-200' }} shadow rounded-xl border border-gray-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Status Condition</h3>
+                    <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">
+                        {{ number_format($stats['condition_success']) }}/{{ number_format($stats['condition_total']) }}
+                    </span>
+                </div>
+
+                @php
+                    $condPercent =
+                        $stats['condition_total'] > 0
+                            ? ($stats['condition_success'] / $stats['condition_total']) * 100
+                            : 0;
+                @endphp
+
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: {{ $condPercent }}%"></div>
+                </div>
+
+                <p class="mt-2 text-xs text-gray-400">
+                    {{ number_format($stats['condition_total'] - $stats['condition_success']) }} diagnosa belum
+                    tersinkron
+                </p>
+            </div>
+            <div
+                class="p-5 {{ $stats['prescription_total'] - $stats['prescription_success'] === 0 ? 'bg-green-100' : 'bg-red-200' }} shadow rounded-xl border border-gray-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Status Medication Request</h3>
+                    <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">
+                        {{ number_format($stats['prescription_success']) }}/{{ number_format($stats['prescription_total']) }}
+                    </span>
+                </div>
+
+                @php
+                    $condPercent =
+                        $stats['prescription_total'] > 0
+                            ? ($stats['prescription_success'] / $stats['prescription_total']) * 100
+                            : 0;
+                @endphp
+
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: {{ $condPercent }}%"></div>
+                </div>
+
+                <p class="mt-2 text-xs text-gray-400">
+                    {{ number_format($stats['prescription_total'] - $stats['prescription_success']) }} medication
+                    request belum
+                    tersinkron
+                </p>
+            </div>
+            <div
+                class="p-5 {{ $stats['dispense_total'] - $stats['dispense_success'] === 0 ? 'bg-sky-100' : 'bg-red-200' }} shadow rounded-xl border border-gray-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Status Medication Dispense</h3>
+                    <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-bold">
+                        {{ number_format($stats['dispense_success']) }}/{{ number_format($stats['dispense_total']) }}
+                    </span>
+                </div>
+
+                @php
+                    $condPercent =
+                        $stats['dispense_total'] > 0
+                            ? ($stats['dispense_success'] / $stats['dispense_total']) * 100
+                            : 0;
+                @endphp
+
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: {{ $condPercent }}%"></div>
+                </div>
+
+                <p class="mt-2 text-xs text-gray-400">
+                    {{ number_format($stats['dispense_total'] - $stats['dispense_success']) }} medication dispense
+                    belum
+                    tersinkron
+                </p>
+            </div>
+
+        </div>
+
+        <div class="bg-white rounded-lg shadow overflow-hidden mt-4 border border-zinc-300">
             <table class="min-w-full leading-normal">
                 <thead>
                     <tr class="bg-gray-50 border-b">
