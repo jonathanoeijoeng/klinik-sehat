@@ -13,12 +13,11 @@ return new class extends Migration
     {
         Schema::create('icd10s', function (Blueprint $table) {
             $table->id();
-            $table->string('code')->unique(); // Contoh: A00.0
+            $table->string('code')->unique()->index(); // Contoh: A00.0
             $table->string('name_en');        // Nama internasional
             $table->string('name_id')->nullable(); // Nama Indonesia (jika ada)
             $table->boolean('is_active')->default(true);
             $table->string('version')->nullable(); // Versi ICD-10
-            $table->index(['code', 'name_id']); // Index penting untuk search
             $table->timestamps();
         });
     }

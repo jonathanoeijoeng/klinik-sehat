@@ -10,6 +10,6 @@ class Invoice extends Model
 
     public function visit()
     {
-        return $this->belongsTo(OutpatientVisit::class, 'visit_id');
+        return $this->belongsTo(OutpatientVisit::class);
     }
 }

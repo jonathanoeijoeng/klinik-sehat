@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('prescriptions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('outpatient_visit_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('outpatient_visit_id')->constrained()->cascadeOnDelete()->index();
 
             // --- TAMBAHKAN INI ---
             $table->foreignId('medicine_id')->constrained()->cascadeOnDelete();
@@ -28,8 +28,8 @@ return new class extends Migration
             $table->enum('status', ['draft', 'sent_to_pharmacy', 'sent_for_payment', 'paid', 'ready', 'dispensed', 'external'])->default('draft');
 
             // Integrasi SATUSEHAT
-            $table->string('satusehat_medication_request_id')->nullable();
-            $table->string('satusehat_medication_dispense_id')->nullable();
+            $table->string('satusehat_medication_request_id')->nullable()->index();
+            $table->string('satusehat_medication_dispense_id')->nullable()->index();
 
             // Timestamp untuk TAT Farmasi (Turn Around Time)
             $table->timestamp('sent_to_pharmacy_at')->nullable();

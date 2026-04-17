@@ -14,17 +14,17 @@ return new class extends Migration
         Schema::create('vital_signs', function (Blueprint $table) {
             $table->id();
             // Foreign key ke tabel outpatient_visits
-            $table->foreignId('visit_id')->constrained('outpatient_visits')->onDelete('cascade');
+            $table->foreignId('outpatient_visit_id')->constrained('outpatient_visits')->onDelete('cascade')->index();
             
             $table->integer('systole')->nullable();
             $table->integer('diastole')->nullable();
-            $table->string('satusehat_observation_blood_pressure_id')->nullable();
+            $table->string('satusehat_observation_blood_pressure_id')->nullable()->index();
             $table->decimal('weight', 5, 2)->nullable(); // contoh: 120.50
-            $table->string('satusehat_observation_weight_id')->nullable();
+            $table->string('satusehat_observation_weight_id')->nullable()->index();
             $table->integer('height')->nullable();
-            $table->string('satusehat_observation_height_id')->nullable();
+            $table->string('satusehat_observation_height_id')->nullable()->index();
             $table->decimal('temperature', 4, 1)->nullable(); // contoh: 36.5
-            $table->string('satusehat_observation_temperature_id')->nullable();
+            $table->string('satusehat_observation_temperature_id')->nullable()->index();
             $table->timestamps();
         });
     }

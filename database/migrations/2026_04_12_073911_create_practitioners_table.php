@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('practitioners', function (Blueprint $table) {
             $table->id();
-            $table->string('nik', 16)->unique();
+            $table->string('nik', 16)->unique()->index();
             $table->string('name');
             $table->string('satusehat_id')->nullable()->index(); // ID dari SATUSEHAT (contoh: P000123)
             $table->string('ihs_number')->nullable();
@@ -22,6 +22,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->decimal('fee', 15, 2)->default(0);
             $table->timestamps();
+            $table->index('nik', 'satusehat_id');
         });
     }
 

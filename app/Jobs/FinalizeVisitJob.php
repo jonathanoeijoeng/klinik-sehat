@@ -48,16 +48,6 @@ class FinalizeVisitJob implements ShouldQueue
                     'status' => 'finished',
                     'finished_at' => now(),
                 ]);
-
-                // $invoice = Invoice::where('visit_id', $this->visit->id)->first();
-                // if ($invoice) {
-                //     $doctorFee = $this->visit->practitioner->fee ?? 0;
-                //     $invoice->update([
-                //         'doctor_fee' => $doctorFee,
-                //         'medicine_total' => $totalMedicineFee,
-                //         'grand_total' => $doctorFee + $totalMedicineFee + $invoice->registration_fee,
-                //     ]);
-                // }
             });
 
             Log::info("Kunjungan {$this->visit->id} berhasil difinalisasi.");

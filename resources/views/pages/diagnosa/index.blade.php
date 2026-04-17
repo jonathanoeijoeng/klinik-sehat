@@ -340,7 +340,7 @@ new class extends Component {
             'sent_to_pharmacy_at' => now(), // Timestamp untuk tracking internal
         ]);
 
-        Invoice::where('visit_id', $this->visit->id)->update([
+        Invoice::where('outpatient_visit_id', $this->visit->id)->update([
             'practitioner_fee' => $this->visit->practitioner->fee ?? 0,
             'grand_total' => ($this->visit->practitioner->fee ?? 0) + $this->visit->invoice->registration_fee,
         ]);

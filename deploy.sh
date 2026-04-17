@@ -1,48 +1,66 @@
 #!/bin/bash
 
-# Pastikan script berhenti jika ada error
 set -e
 
-# Ambil argumen pertama (misal: "seed")
-ACTION=$1
+# Ambil argumen
+ACTION=$1   # Contoh: "seed" atau "deploy"
+MODE=$2     # Contoh: "local" atau "docker" (default ke docker jika kosong)
 
 echo "---------------------------------------------------"
 echo "🚀 Klinik Sehat Auto-Deploy: $(date)"
+echo "Mode: ${MODE:-docker}"
 echo "---------------------------------------------------"
 
 # 1. Ambil update terbaru
 echo "📥 Pulling latest code..."
 git pull origin main
 
-# 2. Update dependencies (PHP & JS)
-echo "📦 Updating dependencies..."
-docker exec klinik-sehat-app composer install --no-dev --optimize-autoloader
-# Jika di Intel NUC Anda sudah ada node_modules, npm install bisa dilewat jika tidak ada perubahan package.json
-docker exec klinik-sehat-app npm install
-docker exec klinik-sehat-app npm run build
+# 2. Fungsi Helper untuk menjalankan command
+# Ini akan mengecek apakah MODE == "local", jika tidak maka pakai docker
+run_cmd() {
+    if [ "$MODE" == "local" ]; then
+        # Jalankan langsung di host
+        $@
+    else
+        # Jalankan di dalam container docker
+        docker exec klinik-sehat-app $@
+    fi
+}
 
-# 3. Database & Cache
+# 3. Update dependencies
+echo "📦 Updating dependencies..."
+run_cmd composer install --no-dev --optimize-autoloader
+run_cmd npm install
+run_cmd npm run build
+
+# 4. Database & Cache
 echo "🗄️ Running migrations & clearing cache..."
 
-# Cek apakah user memasukkan argumen "seed"
 if [ "$ACTION" == "seed" ]; then
     echo "⚠️  WARNING: Running Fresh Migration & Seeding..."
-    # Kita paksa APP_ENV=local agar tidak ditolak Laravel, dan gunakan --force
-    docker exec -e APP_ENV=local klinik-sehat-app php artisan migrate:fresh --seed --force
+    if [ "$MODE" == "local" ]; then
+        php artisan migrate:fresh --seed --force
+    else
+        docker exec -e APP_ENV=local klinik-sehat-app php artisan migrate:fresh --seed --force
+    fi
 else
-    # Jalankan migrasi standar jika tidak ada argumen seed
-    docker exec klinik-sehat-app php artisan migrate --force
+    run_cmd php artisan migrate --force
 fi
 
 echo "🧹 Cleaning up caches..."
-docker exec klinik-sehat-app php artisan optimize:clear
-docker exec klinik-sehat-app php artisan optimize
+run_cmd php artisan optimize:clear
+run_cmd php artisan optimize
 
-# 4. Restart Reverb (Krusial untuk Real-time dashboard QResta/Klinik)
+# 5. Restart Reverb
 echo "🔄 Restarting Reverb server..."
-docker compose restart klinik-sehat-reverb
+if [ "$MODE" == "local" ]; then
+    # Jika local, biasanya menggunakan pm2 atau systemd, sesuaikan di sini
+    # Contoh: pm2 restart reverb-app
+    echo "Skipping docker restart in local mode..."
+else
+    docker compose restart klinik-sehat-reverb
+fi
 
 echo "---------------------------------------------------"
 echo "✅ DEPLOY SUCCESSFUL!"
-if [ "$ACTION" == "seed" ]; then echo "🔥 Database has been REFRESHED & SEEDED"; fi
 echo "---------------------------------------------------"

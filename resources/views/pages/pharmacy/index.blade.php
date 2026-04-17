@@ -93,7 +93,7 @@ new class extends Component {
                 $totalBiayaObatBaru += $item['qty_dispensed'] * $hargaSatuan;
             }
 
-            $invoice = Invoice::where('visit_id', $this->visit->id)->first();
+            $invoice = Invoice::where('outpatient_visit_id', $this->visit->id)->first();
             if ($invoice) {
                 $invoice->update([
                     'medicine_total' => $totalBiayaObatBaru,
