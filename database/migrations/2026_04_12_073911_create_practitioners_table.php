@@ -22,7 +22,6 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->decimal('fee', 15, 2)->default(0);
             $table->timestamps();
-            $table->index('nik', 'satusehat_id');
         });
     }
 

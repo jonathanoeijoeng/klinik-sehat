@@ -55,7 +55,7 @@ class OutpatientVisit extends Model
     public function invoice()
     {
         // Gunakan hasOne jika 1 kunjungan hanya punya 1 invoice
-        return $this->hasOne(Invoice::class, 'visit_id'); 
+        return $this->hasOne(Invoice::class); 
     }
 
     // app/Models/OutpatientVisit.php
@@ -78,7 +78,7 @@ class OutpatientVisit extends Model
 
     public function vitalSign()
     {
-        return $this->hasOne(VitalSign::class, 'visit_id');
+        return $this->hasOne(VitalSign::class);
     }
 
     protected $casts = [

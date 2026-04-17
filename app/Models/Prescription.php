@@ -15,7 +15,7 @@ class Prescription extends Model
         return $this->belongsTo(Medicine::class);
     }
 
-    public function visit()
+    public function outpatient_visit()
     {
         // Pastikan foreign_key di tabel prescriptions bernama visit_id
         return $this->belongsTo(OutpatientVisit::class, 'outpatient_visit_id');

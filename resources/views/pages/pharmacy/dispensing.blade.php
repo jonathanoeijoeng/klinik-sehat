@@ -35,6 +35,12 @@ new class extends Component {
             'status' => 'dispensed',
             'dispensed_at' => now(),
         ]);
+
+        $this->visit->update([
+            'internal_status' => 'finished',
+            'dispensed_at' => now(),
+        ]);
+
         $this->dispatch('toast', text: 'Obat berhasil disinkronkan ke SatuSehat.', type: 'success');
     }
 

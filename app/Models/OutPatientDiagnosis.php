@@ -9,9 +9,9 @@ class OutPatientDiagnosis extends Model
     protected $table = 'out_patient_diagnoses';
     protected $guarded = [];
 
-    public function visit()
+    public function outpatient_visit()
     {
-        return $this->belongsTo(OutPatientVisit::class);
+        return $this->belongsTo(OutPatientVisit::class, 'outpatient_visit_id');
     }
     public function icd10()
     {

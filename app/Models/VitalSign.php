@@ -8,7 +8,7 @@ class VitalSign extends Model
 {
     protected $guarded = [];
 
-    public function visit()
+    public function outpatient_visit()
     {
         return $this->belongsTo(OutpatientVisit::class);
     }

@@ -295,7 +295,6 @@ new class extends Component {
 
         // Reset form untuk input obat berikutnya
         $this->reset(['selectedMedicineId', 'medicineSearch', 'qty', 'instruction']);
-        $this->qty = 1;
 
         $this->visit->load('prescriptions'); // Refresh list resep di bawah
     }

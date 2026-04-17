@@ -683,8 +683,8 @@ class SatuSehatService
 
     public function sendMedicationDispense($prescriptionId)
     {
-        $prescription = Prescription::with(['medicine', 'visit.patient'])->findOrFail($prescriptionId);
-        $visit = $prescription->visit;
+        $prescription = Prescription::with(['medicine', 'outpatient_visit.patient'])->findOrFail($prescriptionId);
+        $visit = $prescription->outpatient_visit;
 
         $payload = [
             "resourceType" => "MedicationDispense",
