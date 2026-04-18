@@ -103,7 +103,7 @@
                     <div class="absolute -bottom-10 -right-10 w-72 h-72 bg-teal-50 rounded-full blur-3xl opacity-70">
                     </div>
 
-                    <img src="/images/clinic.png" alt="Mockup Antarmuka Sistem Informasi Klinik"
+                    <img src="/images/clinic.webp" alt="Mockup Antarmuka Sistem Informasi Klinik"
                         class="relative z-10 w-auto h-3/4 transform">
                 </div>
 
