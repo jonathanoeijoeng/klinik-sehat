@@ -31,15 +31,14 @@
     <nav class="sticky top-0 z-50 glass-morphism">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
-                <div class="flex items-center gap-2">
+                <a class="flex items-center gap-2" href="/">
                     <img src="/logo/favicon.png" alt="Logo KlinikSehat"
                         class="h-8 w-auto
                     <span class="text-xl font-bold tracking-tight
                         text-green-900">SobatKlinik</span>
-                </div>
+                </a>
                 <div class="hidden md:flex space-x-8 text-sm font-medium text-slate-600">
                     <a href="#fitur" class="hover:text-green-600 transition">Fitur</a>
-                    <a href="#integrasi" class="hover:text-green-600 transition">Integrasi</a>
                     <a href="#harga" class="hover:text-green-600 transition">Harga</a>
                 </div>
                 <div class="flex items-center gap-4 text-sm not-has-[nav]:hidden">
@@ -112,7 +111,7 @@
         </div>
     </header>
 
-    <section id="fitur" class="py-24 bg-slate-50/50">
+    <section id="fitur" class="py-60 bg-slate-50/50 h-full">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
                 <h2 class="text-3xl font-bold text-slate-900">Fitur Unggulan</h2>
@@ -178,7 +177,7 @@
             <div class="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200 border border-slate-100">
                 <p class="text-slate-500 font-medium mb-2">Paket Profesional</p>
                 <div class="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6">
-                    IDR 1,200,000 <span class="text-lg text-slate-400 font-normal">/ bulan</span>
+                    IDR 300,000 <span class="text-lg text-slate-400 font-normal">/ bulan</span>
                 </div>
                 <ul class="text-left space-y-4 mb-10 text-slate-600 max-w-sm mx-auto">
                     <li class="flex items-center gap-3">
@@ -200,7 +199,7 @@
                             <path
                                 d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
                         </svg>
-                        Modul Apotek & Inventaris
+                        Modul Apotek
                     </li>
                 </ul>
                 <button
