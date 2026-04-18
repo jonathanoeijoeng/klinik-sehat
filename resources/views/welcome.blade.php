@@ -69,7 +69,7 @@
         </div>
     </nav>
 
-    <header class="relative bg-white pt-8 pb-24 overflow-hidden border-b border-slate-100">
+    <header class="relative bg-green-50 pt-8 pb-24 overflow-hidden border-b border-slate-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid md:grid-cols-2 gap-12 items-center">
 
@@ -103,7 +103,7 @@
                     <div class="absolute -bottom-10 -right-10 w-72 h-72 bg-teal-50 rounded-full blur-3xl opacity-70">
                     </div>
 
-                    <img src="/images/clinic.webp" alt="Mockup Antarmuka Sistem Informasi Klinik"
+                    <img src="/images/clinics.webp" alt="Mockup Antarmuka Sistem Informasi Klinik"
                         class="relative z-10 w-auto h-3/4 transform">
                 </div>
 
@@ -111,7 +111,7 @@
         </div>
     </header>
 
-    <section id="fitur" class="py-60 bg-slate-50/50 h-full">
+    <section id="fitur" class="py-60 bg-green-50 h-full border-b border-slate-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
                 <h2 class="text-3xl font-bold text-slate-900">Fitur Unggulan</h2>
@@ -135,7 +135,7 @@
                 </div>
 
                 <div id="integrasi"
-                    class="p-8 rounded-3xl border border-green-100 bg-green-50 relative overflow-hidden shadow-sm">
+                    class="p-8 rounded-3xl border border-green-100 bg-white relative overflow-hidden shadow-sm">
                     <div class="absolute top-0 right-0 p-4">
                         <span
                             class="text-[10px] font-bold bg-green-600 text-white px-2 py-1 rounded">TERVERIFIKASI</span>
@@ -171,7 +171,7 @@
         </div>
     </section>
 
-    <section id="harga" class="py-24 bg-slate-100/50">
+    <section id="harga" class="py-24 bg-green-50">
         <div class="max-w-3xl mx-auto px-4 text-center">
             <h2 class="text-3xl font-bold mb-12">Investasi Terbaik untuk Klinik</h2>
             <div class="bg-white p-10 rounded-3xl shadow-xl shadow-slate-200 border border-slate-100">
