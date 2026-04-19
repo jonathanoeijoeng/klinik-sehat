@@ -184,47 +184,131 @@ new class extends Component {
 
         </div>
 
-        <div class="bg-white rounded-lg shadow overflow-hidden mt-4 border border-zinc-300">
-            <table class="min-w-full leading-normal">
-                <thead>
-                    <tr class="bg-gray-50 border-b">
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Waktu</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">No. Kunjungan</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Pasien</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">SATUSEHAT ID</th>
-                        <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                        <th class="px-5 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Invoice
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($todayVisits as $visit)
-                        <tr class="border-b">
-                            <td class="px-5 py-4 text-sm">{{ $visit->arrived_at->format('d-M-Y H:i') }}</td>
-                            <td class="px-5 py-4 text-sm font-medium">{{ $visit->visit_number }}</td>
-                            <td class="px-5 py-4 text-sm">{{ $visit->patient->name }}</td>
-                            <td class="px-5 py-4 text-sm">
-                                @if ($visit->satusehat_encounter_id)
-                                    <span
-                                        class="text-green-600 font-mono text-xs">{{ $visit->satusehat_encounter_id }}</span>
-                                @else
-                                    <span class="flex items-center text-yellow-600 text-xs">
-                                        <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">...</svg>
-                                        Memproses...
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="px-5 py-4 text-sm capitalize">{{ $visit->status }}</td>
-                            <td class="px-5 py-4 text-sm text-right">
-                                <span
-                                    class="px-2 py-1 rounded text-xs font-mono text-right {{ $visit->invoice->payment_status === 'paid' ? 'bg-green-200' : 'bg-red-200' }}">
-                                    IDR {{ number_format($visit->invoice->grand_total, 0, '.', ',') }}
-                                </span>
-                            </td>
+        <div class="hidden md:block">
+            <div class="bg-white rounded-lg shadow overflow-hidden mt-4 border border-zinc-300">
+                <table class="min-w-full leading-normal">
+                    <thead>
+                        <tr class="bg-gray-50 border-b">
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Waktu</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">No. Kunjungan
+                            </th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Pasien</th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">SATUSEHAT ID
+                            </th>
+                            <th class="px-5 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                            <th class="px-5 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Invoice
+                            </th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($todayVisits as $visit)
+                            <tr class="border-b">
+                                <td class="px-5 py-4 text-sm">{{ $visit->arrived_at->format('d-M-Y H:i') }}</td>
+                                <td class="px-5 py-4 text-sm font-medium">{{ $visit->visit_number }}</td>
+                                <td class="px-5 py-4 text-sm">{{ $visit->patient->name }}</td>
+                                <td class="px-5 py-4 text-sm">
+                                    @if ($visit->satusehat_encounter_id)
+                                        <span
+                                            class="text-green-600 font-mono text-xs">{{ $visit->satusehat_encounter_id }}</span>
+                                    @else
+                                        <span class="flex items-center text-yellow-600 text-xs">
+                                            <svg class="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">...</svg>
+                                            Memproses...
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-5 py-4 text-sm capitalize">{{ $visit->status }}</td>
+                                <td class="px-5 py-4 text-sm text-right">
+                                    <span
+                                        class="px-2 py-1 rounded text-xs font-mono text-right {{ $visit->invoice->payment_status === 'paid' ? 'bg-green-200' : 'bg-red-200' }}">
+                                        IDR {{ number_format($visit->invoice->grand_total, 0, '.', ',') }}
+                                    </span>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="md:hidden space-y-4 pb-4 mt-6">
+            @foreach ($todayVisits as $visit)
+                <div
+                    class="bg-white dark:bg-zinc-800 rounded-2xl p-4 shadow-sm border-2
+                        {{ $visit->status === 'finished' ? 'border-green-200' : 'border-orange-200' }}">
+
+                    {{-- Top Section --}}
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <span class="font-semibold text-base leading-tight flex items-center gap-2">
+                                {{ $visit->patient->name }}
+                            </span>
+
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{ \Carbon\Carbon::parse($visit->date)->format('d M Y H:i') }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{ $visit->visit_number }}
+                            </p>
+                        </div>
+
+                        <div class="text-right">
+                            <p class="text-lg font-semibold">
+                                IDR {{ number_format($visit->invoice->grand_total) }}
+                            </p>
+                            <p
+                                class="text-xs mt-1 font-medium
+                                    {{ $visit->invoice->payment_status === 'paid' ? 'text-green-600' : 'text-gray-400' }}">
+                                {{ $visit->invoice->payment_status === 'paid' ? 'Paid' : 'Unpaid' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    {{-- Middle Section --}}
+                    <div
+                        class="text-sm text-gray-700 font-semibold dark:text-gray-300 space-y-1 flex justify-between align-center">
+                        <div>
+                            <p>
+                                <span class="text-gray-400 font-normal">Dokter:</span>
+                                {{ $visit->practitioner->name ?? '-' }}
+                            </p>
+                            <p>
+                                <span class="text-gray-400 font-normal">No Kunjungan:</span>
+                                {{ $visit->visit_number ?? '-' }}
+                                {{ $visit->status }}
+                            </p>
+                        </div>
+                        <div class="text-right flex-1">
+                            <div class="text-gray-400">Payment:</div>
+                            <div>{{ $visit->invoice->payment_method ?? '-' }}
+                            </div>
+                        </div>
+                        </p>
+                    </div>
+
+                    {{-- Bottom Section --}}
+                    {{-- <div class="flex justify-between items-center"> --}}
+
+                    {{-- Actions --}}
+                    {{-- <div class="flex gap-4 text-sm">
+
+                            <a href="" class="text-yellow-500 active:scale-95 transition">
+                                Edit
+                            </a>
+
+                            <button wire:click="" class="text-red-600 active:scale-95 transition">
+                                Delete
+                            </button>
+
+                        </div> --}}
+
+                    {{-- </div> --}}
+
+                </div>
+            @endforeach
+
         </div>
     </div>
 </div>
