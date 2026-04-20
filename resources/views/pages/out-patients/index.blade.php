@@ -284,7 +284,7 @@ new class extends Component {
                 </div>
             </div>
 
-            @if ($visitHistory)
+            @if (isset($visitHistory) && $visitHistory->count() > 0)
                 <div class="mt-4 border-t pt-4">
                     <h4 class="font-semibold text-gray-700">Riwayat Kunjungan</h4>
                     <div class="border rounded-lg overflow-x-auto shadow-sm -mx-4 px-4 md:mx-0 md:px-0 mt-2">

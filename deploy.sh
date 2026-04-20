@@ -33,13 +33,17 @@ echo "📦 Updating dependencies..."
 if [ "$MODE" == "local" ]; then
     echo "Running composer and npm locally..."
     composer install
+    php artisan vendor:publish --provider="Flux\FluxServiceProvider" --force
     npm install
     npm run build
 else
     echo "Running composer and npm inside Docker container..."
     docker exec sobat-klinik-app composer install --no-dev --optimize-autoloader
+    # docker exec sobat-klinik-app php artisan vendor:publish --provider="Flux\FluxServiceProvider" --force
     docker exec sobat-klinik-app npm install
     docker exec sobat-klinik-app npm run build
+    docker exec sobat-klinik-app cp -r /var/www/vendor/livewire/flux/dist/. /var/www/public/flux/
+
 fi
 
 # 4. Database & Cache

@@ -184,6 +184,12 @@ new class extends Component {
 
         </div>
 
+        <div class="flex gap-3 items-center mt-12 mb-2">
+            <h3 class="text-gray-800 font-bold uppercase tracking-wider">Kunjungan Bulan Ini</h3>
+            <span class="px-2 py-1 bg-brand-50 text-brand-800 text-xs rounded-full font-bold">
+                {{ number_format($todayVisits->count()) }} Kunjungan
+            </span>
+        </div>
         <div class="hidden md:block">
             <div class="bg-white rounded-lg shadow overflow-hidden mt-4 border border-zinc-300">
                 <table class="min-w-full leading-normal">
@@ -217,7 +223,8 @@ new class extends Component {
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-5 py-4 text-sm capitalize">{{ $visit->status }}</td>
+                                <td class="px-5 py-4 text-sm capitalize">{{ str($visit->internal_status)->headline() }}
+                                </td>
                                 <td class="px-5 py-4 text-sm text-right">
                                     <span
                                         class="px-2 py-1 rounded text-xs font-mono text-right {{ $visit->invoice->payment_status === 'paid' ? 'bg-green-200' : 'bg-red-200' }}">
@@ -248,12 +255,6 @@ new class extends Component {
                             </p>
                         </div>
 
-                        <div>
-                            <p class="text-xs text-gray-500 mt-1">
-                                {{ $visit->visit_number }}
-                            </p>
-                        </div>
-
                         <div class="text-right">
                             <p class="text-lg font-semibold">
                                 IDR {{ number_format($visit->invoice->grand_total) }}
@@ -268,7 +269,7 @@ new class extends Component {
 
                     {{-- Middle Section --}}
                     <div
-                        class="text-sm text-gray-700 font-semibold dark:text-gray-300 space-y-1 flex justify-between align-center">
+                        class="text-sm text-gray-700 font-semibold dark:text-gray-300 space-y-1 flex justify-between align-center mb-3">
                         <div>
                             <p>
                                 <span class="text-gray-400 font-normal">Dokter:</span>
@@ -277,22 +278,25 @@ new class extends Component {
                             <p>
                                 <span class="text-gray-400 font-normal">No Kunjungan:</span>
                                 {{ $visit->visit_number ?? '-' }}
-                                {{ $visit->status }}
                             </p>
-                        </div>
-                        <div class="text-right flex-1">
-                            <div class="text-gray-400">Payment:</div>
-                            <div>{{ $visit->invoice->payment_method ?? '-' }}
-                            </div>
                         </div>
                         </p>
                     </div>
 
                     {{-- Bottom Section --}}
-                    {{-- <div class="flex justify-between items-center"> --}}
+                    <div class="flex justify-between items-center">
+                        <p
+                            class="text-xs {{ $visit->satusehat_encounter_id ? 'text-green-500' : 'text-slate-500' }} mt-1">
+                            {{ $visit->satusehat_encounter_id ? 'Tersinkron dengan SATUSEHAT' : 'Belum tersinkron dengan SATUSEHAT' }}
+                        </p>
+                        <p class="text-sm text-gray-800 capitalize">
+                            <span class="px-2 py-1 bg-brand-50 text-brand-800 text-xs rounded-full font-bold">
+                                {{ str($visit->internal_status)->headline() }}
+                            </span>
+                        </p>
 
-                    {{-- Actions --}}
-                    {{-- <div class="flex gap-4 text-sm">
+                        {{-- Actions --}}
+                        {{-- <div class="flex gap-4 text-sm">
 
                             <a href="" class="text-yellow-500 active:scale-95 transition">
                                 Edit
@@ -301,11 +305,8 @@ new class extends Component {
                             <button wire:click="" class="text-red-600 active:scale-95 transition">
                                 Delete
                             </button>
-
                         </div> --}}
-
-                    {{-- </div> --}}
-
+                    </div>
                 </div>
             @endforeach
 
