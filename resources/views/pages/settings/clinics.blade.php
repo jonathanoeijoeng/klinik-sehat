@@ -83,7 +83,7 @@ new class extends Component {
         if ($this->new_logo) {
             // Simpan file ke storage/app/public/logos
             $path = $this->new_logo->store('logo', 'public');
-            $fileNameOnly = $this->new_logo->hashName();
+            $fileNameOnly = basename($path);
 
             // Update path di database
             $clinic = Clinic::find($this->clinic_id);
