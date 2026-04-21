@@ -18,6 +18,7 @@ use App\Jobs\SyncConditionToSatuSehat;
 use App\Jobs\SyncMedicationRequestToSatuSehat;
 use App\Jobs\FinalizeVisitJob;
 use Illuminate\Support\Facades\Bus;
+use Carbon\Carbon;
 
 new class extends Component {
     public OutpatientVisit $visit;
@@ -34,6 +35,11 @@ new class extends Component {
     public $confirmDeleteDiagnosa = false;
     public $diagnosaId;
     public $prescriptionId;
+    public string $frekuensi = '1';
+    public string $waktuMakan = 'setelah makan';
+    public array $waktuHari = [];
+    public string $satuan = 'tablet';
+    public float $jumlah = 1;
 
     public function mount(OutpatientVisit $visit)
     {
@@ -46,6 +52,41 @@ new class extends Component {
             },
             'prescriptions',
         ]);
+    }
+
+    public array $opsi = [
+        'frekuensi' => ['1', '2', '3', '4'],
+        'waktuMakan' => ['setelah makan', 'sebelum makan', 'bersama makan', 'kapan saja'],
+        'waktuHari' => ['pagi', 'siang', 'sore', 'malam'],
+        'satuan' => ['tablet', 'kapsul', 'sendok teh', 'tetes'],
+    ];
+
+    public function toggleWaktuHari(string $val): void
+    {
+        if (in_array($val, $this->waktuHari)) {
+            $this->waktuHari = array_values(array_filter($this->waktuHari, fn($v) => $v !== $val));
+        } else {
+            $this->waktuHari[] = $val;
+        }
+    }
+
+    public function getHasilProperty(): string
+    {
+        $jumlah = $this->jumlah % 1 === 0.0 ? (int) $this->jumlah : $this->jumlah;
+
+        $hasil = "{$this->frekuensi}× sehari, {$jumlah} {$this->satuan} {$this->waktuMakan}";
+
+        if (!empty($this->waktuHari)) {
+            $hasil .= ' (' . implode(', ', $this->waktuHari) . ')';
+        }
+
+        return $hasil;
+    }
+
+    // Emit ke parent component (misal: form resep)
+    public function gunakan(): void
+    {
+        $this->instruction = $this->hasil;
     }
 
     public function updatedSearch()
@@ -398,6 +439,14 @@ new class extends Component {
             'prescriptions.medicine', // Sangat penting untuk list obat
         ]);
 
+        $histories = OutpatientVisit::query()
+            ->where('patient_id', $this->visit->patient_id)
+            ->where('internal_status', 'finished')
+            ->where('id', '!=', $this->visit->id) // eksplisit exclude visit sekarang
+            ->orderBy('created_at', 'desc')
+            ->limit(2)
+            ->get();
+
         $icdResults = [];
 
         if (strlen($this->search) > 2 && !$this->selectedIcd10) {
@@ -426,6 +475,7 @@ new class extends Component {
 
         return $this->view([
             'icdResults' => $icdResults,
+            'histories' => $histories,
         ]);
     }
 };
@@ -435,7 +485,7 @@ new class extends Component {
     <x-header header="Diagnosa Pasien"
         description="Kelola proses pemeriksaan medis secara komprehensif, mulai dari pencatatan anamnesa, tanda-tanda vital (TTV), hingga penetapan diagnosa ICD-10. Terintegrasi langsung dengan modul resep obat dan sistem SATUSEHAT untuk memastikan setiap keputusan klinis tercatat dalam rekam medis elektronik yang akurat dan legal." />
 
-    <div class="max-w-7xl mx-auto py-2 px-4 sm:px-6 lg:px-6">
+    <div class="max-w-8xl mx-auto py-2 px-4 sm:px-6 lg:px-6">
         <div class="bg-white border border-brand-200 shadow rounded-lg mb-4 overflow-hidden">
             <div class="bg-brand-600 px-4 py-3">
                 <h3 class="text-white font-bold">Pemeriksaan Pasien</h3>
@@ -490,6 +540,53 @@ new class extends Component {
                         <p class="text-sm italic text-gray-400">Data vital sign belum tersedia.</p>
                     @endif
                 </div>
+                <div class="bg-white border border-brand-200 shadow rounded-lg p-1.5 mt-4">
+                    <h4 class="font-bold text-gray-700 px-2 py-2 mb-1">Histori Pasien</h4>
+                    <div class="space-y-3">
+                        @forelse ($histories as $history)
+                            <div
+                                class="border border-gray-200 rounded-lg p-4 bg-slate-50 border-l-8 border-l-green-500">
+                                <div class="flex justify-between text-sm mb-4">
+                                    <span
+                                        class="text-gray-500">{{ Carbon::parse($history->started_at)->format('d M Y H:i') }}</span>
+                                    <span class="font-semibold capitalize">{{ $history->status }}</span>
+                                </div>
+                                <div class="p-2 bg-white border border-slate-200 rounded-lg mb-2">
+                                    <div class="flex justify-between mb-0">
+                                        <span class="text-gray-500 font-semibold text-sm">Diagnosa</span>
+                                    </div>
+                                    @forelse($history->diagnoses as $diagnosis)
+                                        <span
+                                            class="text-xs px-2 py-0.5 bg-green-100 text-slate-600 rounded-full">{{ $diagnosis->is_primary ? 'Primary' : '' }}</span>
+                                        <span
+                                            class="text-xs px-2 py-0.5  text-slate-600 rounded">{{ $diagnosis->icd10_code }}</span>
+                                        <span
+                                            class="text-xs px-2 py-0.5  text-slate-600">{{ $diagnosis->icd10_display }}</span>
+                                    @empty
+                                    @endforelse
+                                </div>
+                                <div class="p-2 bg-white border border-slate-200 rounded-lg">
+                                    <div class="flex justify-between mt-2 mb-0">
+                                        <span class="text-gray-500 font-semibold text-sm">Obat</span>
+                                    </div>
+                                    @forelse($history->prescriptions as $prescription)
+                                        <span
+                                            class="text-xs px-2 py-0.5  text-slate-600 rounded">{{ $prescription->medicine->kfa_code }}
+                                            - {{ $prescription->medicine_name }}</span>
+                                        <div class="text-xs pl-6 pr-2 py-0.5  text-slate-600">
+                                            {{ $prescription->qty_dispensed }} vial - {{ $prescription->instruction }}
+                                        </div>
+
+                                    @empty
+                                    @endforelse
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm italic text-gray-400">Tidak ada riwayat diagnosa pasien.</p>
+                        @endforelse
+                    </div>
+                </div>
+
             </div>
 
             <div class="md:col-span-2">
@@ -585,7 +682,8 @@ new class extends Component {
 
                                 @if ($visit->diagnoses->isEmpty())
                                     <div class="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
-                                        <p class="text-sm text-gray-400 italic">Belum ada diagnosa yang ditambahkan.</p>
+                                        <p class="text-sm text-gray-400 italic">Belum ada diagnosa yang ditambahkan.
+                                        </p>
                                     </div>
                                 @endif
                             </div>
@@ -661,6 +759,113 @@ new class extends Component {
                             </div>
                         @endif
                     </div>
+
+                    <div class="space-y-5 mt-3 p-6 border border-gray-200 rounded-lg bg-slate-50">
+
+                        {{-- Frekuensi --}}
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-400 mb-2">Frekuensi</p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($opsi['frekuensi'] as $item)
+                                    <button type="button" wire:click="$set('frekuensi', '{{ $item }}')"
+                                        @class([
+                                            'px-4 py-1.5 rounded-full text-sm border transition',
+                                            'bg-green-200/80 border-brand-400 text-brand-700 font-medium' =>
+                                                $frekuensi === $item,
+                                            'bg-white border-gray-200 text-gray-600 hover:bg-gray-50' =>
+                                                $frekuensi !== $item,
+                                        ])>
+                                        {{ $item }}× sehari
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Waktu Makan --}}
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-400 mb-2">Waktu makan</p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($opsi['waktuMakan'] as $item)
+                                    <button type="button" wire:click="$set('waktuMakan', '{{ $item }}')"
+                                        @class([
+                                            'px-4 py-1.5 rounded-full text-sm border transition',
+                                            'bg-green-200/80 border-brand-400 text-brand-700 font-medium' =>
+                                                $waktuMakan === $item,
+                                            'bg-white border-gray-200 text-gray-600 hover:bg-gray-50' =>
+                                                $waktuMakan !== $item,
+                                        ])>
+                                        {{ ucfirst($item) }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Waktu Hari --}}
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-400 mb-1">
+                                Waktu hari
+                                <span class="normal-case text-gray-300 tracking-normal font-normal">(opsional, bisa
+                                    lebih dari satu)</span>
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($opsi['waktuHari'] as $item)
+                                    <button type="button" wire:click="toggleWaktuHari('{{ $item }}')"
+                                        @class([
+                                            'px-4 py-1.5 rounded-full text-sm border transition',
+                                            'bg-green-200/80 border-brand-400 text-brand-700 font-medium' => in_array(
+                                                $item,
+                                                $waktuHari),
+                                            'bg-white border-gray-200 text-gray-600 hover:bg-gray-50' => !in_array(
+                                                $item,
+                                                $waktuHari),
+                                        ])>
+                                        {{ ucfirst($item) }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Jumlah & Satuan --}}
+                        <div>
+                            <p class="text-xs font-medium uppercase tracking-wide text-gray-400 mb-2">Jumlah & satuan
+                            </p>
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <input type="number" wire:model.live="jumlah" min="0.5" step="0.5"
+                                    class="w-20 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-300" />
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach ($opsi['satuan'] as $item)
+                                        <button type="button" wire:click="$set('satuan', '{{ $item }}')"
+                                            @class([
+                                                'px-4 py-1.5 rounded-full text-sm border transition',
+                                                'bg-green-200/80 border-brand-400 text-brand-700 font-medium' =>
+                                                    $satuan === $item,
+                                                'bg-white border-gray-200 text-gray-600 hover:bg-gray-50' =>
+                                                    $satuan !== $item,
+                                            ])>
+                                            {{ ucfirst($item) }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Divider --}}
+                        <div class="border-t border-gray-100"></div>
+
+                        {{-- Preview Hasil --}}
+                        <div class="flex items-center justify-between bg-slate-200 rounded-xl px-4 py-3">
+                            <div>
+                                <p class="font-medium text-gray-800">{{ $this->hasil }}</p>
+                                <p class="text-xs text-gray-400 mt-0.5">Preview aturan pakai</p>
+                            </div>
+                            <button type="button" wire:click="gunakan"
+                                class="text-sm px-4 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition font-medium">
+                                Gunakan
+                            </button>
+                        </div>
+
+                    </div>
+
 
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
                         <x-input type="number" wire:model="qty" placeholder="Qty" name="qty_ordered"
