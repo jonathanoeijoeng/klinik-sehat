@@ -122,7 +122,7 @@ new class extends Component {
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                @foreach ($patients as $patient)
+                @forelse ($patients as $patient)
                     <tr>
                         <td class="w-px whitespace-nowrap px-6 py-4">
                             <div class="font-medium text-gray-900">{{ $patient->name }}</div>
@@ -149,7 +149,13 @@ new class extends Component {
                             <button class="text-blue-600 hover:text-blue-900">Detail</button>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-sm font-medium">
+                            <x-nodatafound />
+                        </td>
+                    </tr>
+                @endif
             </tbody>
         </table>
     </div>

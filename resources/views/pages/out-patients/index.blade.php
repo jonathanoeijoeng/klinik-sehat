@@ -177,7 +177,7 @@ new class extends Component {
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                @foreach ($outpatientVisits as $visit)
+                @forelse ($outpatientVisits as $visit)
                     <tr>
                         <td class=" px-6 py-4">
                             <div class="font-medium text-gray-900">{{ $visit->patient->name }}</div>
@@ -199,7 +199,13 @@ new class extends Component {
                                 wire:click="startConsultation({{ $visit->id }})">{{ $visit->status === 'finished' ? 'Finished' : 'Input Diagnosa' }}</a>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="7" class="px-6 py-4 text-center text-sm font-medium">
+                            <x-nodatafound />
+                        </td>
+                    </tr>
+                @endif
             </tbody>
         </table>
     </div>

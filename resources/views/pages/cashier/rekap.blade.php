@@ -134,7 +134,7 @@ new class extends Component {
                         IDR {{ number_format($totals->total_grand, 0, ',', ',') }}
                     </td>
                 </tr>
-                @foreach ($invoices as $invoice)
+                @forelse ($invoices as $invoice)
                     <tr>
                         <td class=" px-6 py-4 text-center text-sm  capitalize">
                             {{ Carbon::parse($invoice->created_at)->format('d M Y') }}
@@ -161,7 +161,13 @@ new class extends Component {
                             IDR {{ number_format($invoice->grand_total, 0, ',', ',') }}
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="8" class="px-6 py-4 text-center text-sm font-medium">
+                            <x-nodatafound />
+                        </td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
     </div>

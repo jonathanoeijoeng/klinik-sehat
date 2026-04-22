@@ -245,7 +245,7 @@ new class extends Component {
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($this->getTopMedicines() as $medicine)
+                        @forelse($this->getTopMedicines() as $medicine)
                             <tr class="border-b">
                                 <td class="px-4 py-2">{{ $medicine->medicine_name }}</td>
                                 <td class="px-4 py-2 text-center font-mono">{{ number_format($medicine->total_resep) }}
@@ -255,7 +255,13 @@ new class extends Component {
                                 </td>
                                 <td class="px-4 py-2 text-gray-500 text-right">{{ $medicine->uom }}</td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-6 py-4 text-center text-sm font-medium">
+                                    <x-nodatafound />
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -305,7 +311,7 @@ new class extends Component {
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($visits as $visit)
+                        @forelse ($visits as $visit)
                             <tr class="border-b">
                                 <td class="px-5 py-4 text-sm">{{ $visit->arrived_at->format('d-M-Y H:i') }}</td>
                                 <td class="px-5 py-4 text-sm">{{ $visit->visit_number }}</td>
@@ -402,7 +408,13 @@ new class extends Component {
                                     </div>
                                 </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-5 py-4 text-center text-sm font-medium">
+                                    <x-nodatafound />
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
