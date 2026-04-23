@@ -100,35 +100,42 @@ new class extends Component {
             class="mb-4 md:max-w-lg w-full" />
         <x-button wire:click="newPatient" class="mb-4" color="brand">Registrasi Baru</x-button>
     </div>
-    <div class="border rounded-lg overflow-x-auto shadow-sm -mx-4 px-4 md:mx-0 md:px-0">
-        <table class="min-w-full divide-y divide-gray-200">
+    <div class="border rounded-lg overflow-x-scroll shadow-sm md:mx-0 md:px-0">
+        <table class="w-full md:min-w-full divide-y divide-gray-200 ">
             <thead class="bg-brand-500">
                 <tr>
                     <th
-                        class="w-px whitespace-nowrap px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-widest">
+                        class="w-px whitespace-nowrap px-4 md:px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-widest">
                         Nama / NIK
                     </th>
                     <th
-                        class="w-px whitespace-nowrap px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-widest">
+                        class="w-px whitespace-nowrap px-4 md:px-6 py-4 text-left text-sm font-bold text-white uppercase tracking-widest hidden md:table-cell">
                         Status
                         SATUSEHAT</th>
                     <th
-                        class="w-px whitespace-nowrap px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
+                        class="w-px whitespace-nowrap px-4 md:px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
                         Phone</th>
                     <th
-                        class="w-px whitespace-nowrap px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
+                        class="w-px whitespace-nowrap px-4 md:px-6 py-4 text-center text-sm font-bold text-white uppercase tracking-widest">
                         L/P</th>
-                    <th class="px-12 py-4 text-right text-sm font-bold text-white uppercase tracking-widest">Aksi</th>
+                    <th class="px-4 md:px-12 py-4 text-right text-sm font-bold text-white uppercase tracking-widest">
+                        Aksi</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-                @forelse ($patients as $patient)
+                @foreach ($patients as $patient)
                     <tr>
-                        <td class="w-px whitespace-nowrap px-6 py-4">
-                            <div class="font-medium text-gray-900">{{ $patient->name }}</div>
-                            <div class="text-xs text-gray-500">{{ $patient->nik }}</div>
+                        <td class="w-px px-4 md:px-6 py-4">
+                            <div class="flex items-start">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">{{ $patient->name }}</div>
+                                    <div class="text-xs text-gray-500">{{ $patient->nik }}</div>
+                                </div>
+                                <img src="/logo/satusehat.png" alt="avatar"
+                                    class="w-3 h-3 rounded-full object-cover mt-1 ml-1">
+                            </div>
                         </td>
-                        <td class="w-px whitespace-nowrap px-6 py-4">
+                        <td class="text-sm w-px whitespace-nowrap px-4 md:px-6 py-4 hidden md:table-cell">
                             @if ($patient->satusehat_patient_id)
                                 <span
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -141,21 +148,15 @@ new class extends Component {
                                 </span>
                             @endif
                         </td>
-                        <td class="w-px whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
+                        <td class="w-px whitespace-nowrap px-4 md:px-6 py-4 text-center text-sm font-medium">
                             {{ $patient->phone_number }}</td>
-                        <td class="w-px whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
+                        <td class="w-px whitespace-nowrap md:px-4 px-6 py-4 text-center text-sm font-medium">
                             {{ $patient->gender === 'female' ? 'Wanita' : 'Pria' }}</td>
-                        <td class="px-12 py-4 text-right text-sm font-medium">
+                        <td class="px-4 md:px-12 py-4 text-right text-sm font-medium">
                             <button class="text-blue-600 hover:text-blue-900">Detail</button>
                         </td>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" class="px-6 py-4 text-center text-sm font-medium">
-                            <x-nodatafound />
-                        </td>
-                    </tr>
-                @endif
+                @endforeach
             </tbody>
         </table>
     </div>
