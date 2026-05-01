@@ -60,7 +60,7 @@ new class extends Component {
     public function render()
     {
         $query = OutpatientVisit::with(['patient', 'invoice'])
-            ->whereBetween('arrived_at', [now()->startOfMonth(), now()->endOfMonth()])
+            // ->whereBetween('arrived_at', [now()->startOfMonth(), now()->endOfMonth()])
             ->when($this->startDate && $this->endDate, function ($query) {
                 $query->whereBetween('arrived_at', [Carbon::parse($this->startDate)->startOfDay(), Carbon::parse($this->endDate)->endOfDay()]);
             })

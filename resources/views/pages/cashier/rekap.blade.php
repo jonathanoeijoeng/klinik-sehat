@@ -37,7 +37,7 @@ new class extends Component {
     public function render()
     {
         $invoices = Invoice::with(['outpatient_visit.patient']) // Eager loading dalam array lebih rapi
-            ->whereBetween('paid_at', [now()->startOfMonth(), now()->endOfMonth()])
+            // ->whereBetween('paid_at', [now()->startOfMonth(), now()->endOfMonth()])
             ->when($this->startDate && $this->endDate, function ($query) {
                 $query->whereBetween('paid_at', [Carbon::parse($this->startDate)->startOfDay(), Carbon::parse($this->endDate)->endOfDay()]);
             })
