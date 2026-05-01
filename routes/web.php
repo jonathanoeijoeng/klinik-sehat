@@ -12,7 +12,6 @@ Route::middleware(['auth', 'verified', 'clinic_active'])->group(function () {
 
     // Rawat Jalan
     Route::livewire('/out-patients', 'pages::out-patients.index')->name('out-patients.index');
-    Route::livewire('/outpatient/{visit}/diagnosis', 'pages::diagnosa.index')->name('outpatient.diagnosis');
 
     // Practitioner
     Route::livewire('/practitioner', 'pages::practitioner.index')->name('practitioner.index');

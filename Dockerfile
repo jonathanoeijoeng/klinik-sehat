@@ -39,7 +39,7 @@ COPY --chown=server:server . /var/www
 # Pastikan folder storage dan cache ada sebelum chmod
 RUN mkdir -p /var/www/storage /var/www/bootstrap/cache \
     && chown -R server:server /var/www/storage /var/www/bootstrap/cache /var/www/database \
-    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache /var/www/database \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache /var/www/database
 
 USER server
 
