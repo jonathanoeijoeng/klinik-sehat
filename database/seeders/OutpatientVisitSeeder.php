@@ -46,8 +46,17 @@ class OutpatientVisitSeeder extends Seeder
             ->shuffle()
             ->values();
 
+        $arrivedVisitCount = 0;
+        $arrivedVisitsWithoutEncounter = 3;
+
         for ($i = 0; $i < $jumlahData; $i++) {
             $internalStatus = $statusPlan[$i];
+            $shouldCreateEncounter = true;
+
+            if ($internalStatus === 'arrived') {
+                $arrivedVisitCount++;
+                $shouldCreateEncounter = $arrivedVisitCount > $arrivedVisitsWithoutEncounter;
+            }
 
             // 1. Tentukan Waktu Kedatangan (Arrived)
             $baseTime = Carbon::now()->subDays(rand(1, $rentangHari))->setTime(rand(8, 18), rand(0, 59));
@@ -84,7 +93,7 @@ class OutpatientVisitSeeder extends Seeder
                 'location_id'     => rand(1, 3), // ID Poli
                 'status'          => $this->visitStatusForInternalStatus($internalStatus),
                 'internal_status' => $internalStatus,
-                'satusehat_encounter_id' => (string) Str::uuid(),
+                'satusehat_encounter_id' => $shouldCreateEncounter ? (string) Str::uuid() : null,
                 'complaint'       => 'Keluhan umum pasien ke-' . ($i + 1),
 
                 // Timestamp TAT
