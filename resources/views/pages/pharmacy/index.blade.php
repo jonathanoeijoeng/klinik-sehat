@@ -131,8 +131,8 @@ new class extends Component {
     @foreach ($pharmacies as $visit)
         @php
             $statuses = $visit->prescriptions->pluck('status');
+            // Logika warna border kiri sesuai status
             $statusBorder = 'border-l-gray-300';
-
             if ($statuses->contains('sent_to_pharmacy')) {
                 $statusBorder = 'border-l-orange-500';
             } elseif ($statuses->contains('pharmacy_processing') || $statuses->contains('sent-for-payment')) {
@@ -141,51 +141,87 @@ new class extends Component {
                 $statusBorder = 'border-l-emerald-500';
             }
         @endphp
-        <div class="card mb-4 border-l-8 {{ $statusBorder }} shadow-sm">
-            <div class="card-header bg-slate-50 flex justify-between items-center p-4">
+
+        <div class="card mb-6 border-l-8 {{ $statusBorder }} shadow-sm bg-white rounded-lg overflow-hidden">
+            {{-- Header: Stacked on Mobile, Row on Desktop --}}
+            <div
+                class="card-header bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center p-4 gap-4">
                 <div>
-                    <h3 class="font-bold text-slate-800">{{ $visit->patient->name }}</h3>
-                    <p class="text-xs text-slate-500">Kunjungan: {{ $visit->arrived_at->format('d/m/Y H:i') }}</p>
+                    <h3 class="font-bold text-slate-800 text-lg">{{ $visit->patient->name }}</h3>
+                    <p class="text-xs text-slate-500">
+                        <i class="fa-regular fa-clock mr-1"></i>
+                        Kunjungan: {{ $visit->arrived_at->format('d/m/Y H:i') }}
+                    </p>
                 </div>
-                <div class="flex items-center">
+
+                <div class="w-full md:w-auto">
                     @if ($visit->prescriptions->every('sent_to_pharmacy_at'))
-                        <x-button wire:click="processAll({{ $visit->id }})" class="ml-4 text-sm" variant="green">
-                            PROSES DAN KONFIRMASI KE PASIEN
+                        <x-button wire:click="processAll({{ $visit->id }})"
+                            class="w-full md:w-auto text-sm py-2.5 justify-center" variant="green">
+                            PROSES & KONFIRMASI
                         </x-button>
                     @endif
                 </div>
             </div>
 
-            <div class="card-body">
-                <table class="w-full text-sm text-left">
-                    <thead class="text-xs text-slate-400 uppercase bg-slate-100 table-fixed">
-                        <tr>
-                            <th class="px-4 py-2">Nama Obat</th>
-                            <th class="w-30 px-4 py-2 text-center">Jumlah</th>
-                            <th class="w-60 px-4 py-2">Aturan Pakai</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{-- Loop Kedua: Mengambil obat dari relasi prescriptions --}}
-                        @foreach ($visit->prescriptions as $item)
-                            <tr class="border-b">
-                                <td class="px-4 py-3 font-medium">{{ $item->medicine->name }}</td>
-                                <td class="px-4 py-3 text-center">{{ $item->qty_ordered }}
-                                    {{ $item->medicine->unit }}
-                                </td>
-                                <td class="px-4 py-3 text-slate-600 italic">{{ $item->instruction }}</td>
+            <div class="card-body p-0">
+                {{-- VIEW DESKTOP: Tabel (Hidden on Mobile) --}}
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-100">
+                            <tr>
+                                <th class="px-4 py-3">Nama Obat</th>
+                                <th class="w-32 px-4 py-3 text-center">Jumlah</th>
+                                <th class="px-4 py-3">Aturan Pakai</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach ($visit->prescriptions as $item)
+                                <tr>
+                                    <td class="px-4 py-3">
+                                        <div class="font-medium text-slate-700">{{ $item->medicine->name }}</div>
+                                    </td>
+                                    <td class="px-4 py-3 text-center font-semibold">
+                                        {{ number_format($item['qty_ordered'], 0, ',', ',') }}
+                                        {{ $item->medicine->unit }}
+                                    </td>
+                                    <td class="px-4 py-3 text-slate-600 italic text-xs">
+                                        {{ $item->instruction }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- VIEW MOBILE: Stacked List (Hidden on Desktop) --}}
+                <div class="block md:hidden divide-y divide-slate-100">
+                    @foreach ($visit->prescriptions as $item)
+                        <div class="p-4 hover:bg-slate-50">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="font-bold text-slate-800 leading-tight">
+                                    {{ $item->medicine->name }}
+                                </div>
+                                <div class="shrink-0 ml-2">
+                                    <span
+                                        class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                                        {{ number_format($item['qty_ordered'], 0, ',', ',') }}
+                                        {{ $item->medicine->unit }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div
+                                class="flex items-start text-xs text-slate-500 bg-slate-50 p-2 rounded border border-dashed border-slate-200">
+                                <i class="fa-solid fa-info-circle mt-0.5 mr-2 text-slate-400"></i>
+                                <span class="italic leading-relaxed">{{ $item->instruction }}</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </div>
     @endforeach
 
-    {{-- Pagination Links --}}
-    <div class="mt-4">
-        {{ $pharmacies->links() }}
-    </div>
     <div x-data="{ open: @entangle('showModal') }" x-show="open"
         class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto" x-cloak>
         <div class="fixed inset-0 bg-black opacity-50" @click="open = false"></div>
