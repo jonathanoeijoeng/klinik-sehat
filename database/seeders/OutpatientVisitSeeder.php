@@ -47,7 +47,7 @@ class OutpatientVisitSeeder extends Seeder
             ->values();
 
         $arrivedVisitCount = 0;
-        $arrivedVisitsWithoutEncounter = 3;
+        $arrivedVisitsWithoutEncounter = 5;
 
         for ($i = 0; $i < $jumlahData; $i++) {
             $internalStatus = $statusPlan[$i];
